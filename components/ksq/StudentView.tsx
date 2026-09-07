@@ -51,7 +51,6 @@ export default function StudentView() {
     if (error) {
       console.error("Xəta:", error.message);
     } else if (data) {
-      // Yalnız aktiv imtahanları göstərək (is_active false deyilse)
       const activeExams = data.filter((item: FormItem) => item.is_active !== false);
       setSavedForms(activeExams);
     }
@@ -71,9 +70,10 @@ export default function StudentView() {
 
     if (!selectedExam) return;
 
-    // PIN yoxlanışı (access_pin sütunu vasitəsilə)
-    if (selectedExam.access_pin && selectedExam.access_pin.trim() !== "") {
-      if (enteredPin.trim() !== selectedExam.access_pin.trim()) {
+    const isPrivateExam = selectedExam.is_private === true || (selectedExam.access_pin && selectedExam.access_pin.trim() !== "");
+
+    if (isPrivateExam) {
+      if (enteredPin.trim() !== (selectedExam.access_pin || "").trim()) {
         alert("Yanlış İmtahan PIN şifrəsi! Müəllimdən doğru şifrəni alın.");
         return;
       }
@@ -206,7 +206,8 @@ export default function StudentView() {
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {filteredForms.map((frm) => {
-                  const hasPin = (frm.access_pin && frm.access_pin.trim() !== "") || frm.is_private === true;
+                  const isPrivateExam = frm.is_private === true || (frm.access_pin && frm.access_pin.trim() !== "");
+                  
                   return (
                     <div key={frm.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", background: COLORS.paper, borderRadius: 12, border: `1px solid ${COLORS.paperLine}`, flexWrap: "wrap", gap: 12 }}>
                       <div>
@@ -217,8 +218,15 @@ export default function StudentView() {
                           <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.inkSoft }}>
                             Kod: <strong style={{ color: COLORS.ink }}>{frm.code}</strong>
                           </span>
-                          <span style={{ fontSize: 11, fontWeight: 600, color: hasPin ? "#d9534f" : COLORS.green }}>
-                            {hasPin ? "🔒 Şifrəli" : "🔓 Açıq"}
+                          <span style={{ 
+                            fontSize: 11, 
+                            fontWeight: 600, 
+                            color: isPrivateExam ? "#DC2626" : COLORS.green,
+                            background: isPrivateExam ? "rgba(220, 38, 38, 0.1)" : "rgba(5, 150, 105, 0.1)",
+                            padding: "2px 8px",
+                            borderRadius: 12
+                          }}>
+                            {isPrivateExam ? "🔒 Şifrəli" : "🔓 Açıq"}
                           </span>
                         </div>
                         <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.ink }}>{frm.title}</div>
@@ -256,7 +264,7 @@ export default function StudentView() {
             {selectedExam.title} ({selectedExam.subject})
           </h3>
           <p style={{ fontSize: 13, color: COLORS.inkSoft, marginBottom: 20 }}>
-            İmtahana başlamaq üçün ad və soyadınızı {(selectedExam.access_pin && selectedExam.access_pin.trim() !== "") || selectedExam.is_private ? "və müəllimin verdiyi PIN şifrəni" : ""} daxil edin.
+            İmtahana başlamaq üçün ad və soyadınızı {(selectedExam.is_private === true || (selectedExam.access_pin && selectedExam.access_pin.trim() !== "")) ? "və müəllimin verdiyi PIN şifrəni" : ""} daxil edin.
           </p>
 
           <form onSubmit={handleStartExam} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -269,7 +277,7 @@ export default function StudentView() {
               autoFocus
             />
 
-            {((selectedExam.access_pin && selectedExam.access_pin.trim() !== "") || selectedExam.is_private) && (
+            {(selectedExam.is_private === true || (selectedExam.access_pin && selectedExam.access_pin.trim() !== "")) && (
               <input
                 type="text"
                 placeholder="İmtahan PIN Şifrəsi (Məs: 1234)"
