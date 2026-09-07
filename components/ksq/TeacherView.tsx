@@ -20,6 +20,7 @@ interface ExamItem {
   title: string;
   subject: string;
   code: string;
+  exam_pin?: string;
   questions: Question[];
   created_at?: string;
 }
@@ -42,6 +43,7 @@ export default function TeacherView() {
   const [title, setTitle] = useState("");
   const [subject, setSubject] = useState("Riyaziyyat");
   const [code, setCode] = useState("");
+  const [examPin, setExamPin] = useState("");
   const [questions, setQuestions] = useState<Question[]>([
     { id: 1, text: "", optA: "", optB: "", optC: "", optD: "", correct: "A" }
   ]);
@@ -66,7 +68,7 @@ export default function TeacherView() {
 
   const handleRemoveQuestion = (id: number) => {
     if (questions.length === 1) {
-      alert("En azı 1 sual olmalıdır!");
+      alert("Ən azı 1 sual olmalıdır!");
       return;
     }
     setQuestions((prev) => prev.filter((q) => q.id !== id));
@@ -104,6 +106,7 @@ export default function TeacherView() {
           title: title.trim(),
           subject: subject,
           code: code.trim().toUpperCase(),
+          exam_pin: examPin.trim() || null,
           questions: questions,
         },
       ]);
@@ -113,6 +116,7 @@ export default function TeacherView() {
       alert("İmtahan uğurla bulud bazasına yadda saxlanıldı!");
       setTitle("");
       setCode("");
+      setExamPin("");
       setQuestions([{ id: Date.now(), text: "", optA: "", optB: "", optC: "", optD: "", correct: "A" }]);
       fetchExamsList();
     } catch (err: any) {
@@ -337,6 +341,19 @@ export default function TeacherView() {
                 style={{ width: "100%", padding: "10px 14px", borderRadius: 8, border: `1px solid ${COLORS.paperLine}`, background: COLORS.paper, fontSize: 14, outline: "none", boxSizing: "border-box" }}
               />
             </div>
+
+            <div style={{ gridColumn: "1 / -1" }}>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: COLORS.ink, marginBottom: 8 }}>
+                İmtahan PIN Şifrəsi (İstəyə bağlı)
+              </label>
+              <input
+                type="text"
+                placeholder="Şagirdlərin imtahana daxil olması üçün PIN (boş buraxa bilərsiniz)"
+                value={examPin}
+                onChange={(e) => setExamPin(e.target.value)}
+                style={{ width: "100%", padding: "10px 14px", borderRadius: 8, border: `1px solid ${COLORS.paperLine}`, background: COLORS.paper, fontSize: 14, outline: "none", boxSizing: "border-box" }}
+              />
+            </div>
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -424,6 +441,7 @@ export default function TeacherView() {
                     </div>
                     <div style={{ fontSize: 13, color: COLORS.inkSoft, marginTop: 4 }}>
                       👨‍🏫 Müəllim: <strong>{exam.teacher_name}</strong> • 🔑 Kod: <code style={{ background: COLORS.card, padding: "2px 6px", borderRadius: 4 }}>{exam.code}</code>
+                      {exam.exam_pin ? " • 🔒 Şifrəli" : ""}
                       {exam.created_at && ` • 📅 ${new Date(exam.created_at).toLocaleDateString("az-AZ")}`}
                     </div>
                   </div>
