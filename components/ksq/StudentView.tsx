@@ -20,7 +20,9 @@ interface FormItem {
   title: string;
   subject: string;
   code: string;
-  exam_pin?: string | null;
+  access_pin?: string | null;
+  is_private?: boolean;
+  is_active?: boolean;
   questions: Question[];
   created_at?: string;
 }
@@ -49,7 +51,9 @@ export default function StudentView() {
     if (error) {
       console.error("Xəta:", error.message);
     } else if (data) {
-      setSavedForms(data);
+      // Yalnız aktiv imtahanları göstərək (is_active false deyilse)
+      const activeExams = data.filter((item: FormItem) => item.is_active !== false);
+      setSavedForms(activeExams);
     }
     setLoading(false);
   };
@@ -67,9 +71,9 @@ export default function StudentView() {
 
     if (!selectedExam) return;
 
-    // Əgər imtahanın PIN şifrəsi varsa, yoxlayırıq
-    if (selectedExam.exam_pin && selectedExam.exam_pin.trim() !== "") {
-      if (enteredPin.trim() !== selectedExam.exam_pin.trim()) {
+    // PIN yoxlanışı (access_pin sütunu vasitəsilə)
+    if (selectedExam.access_pin && selectedExam.access_pin.trim() !== "") {
+      if (enteredPin.trim() !== selectedExam.access_pin.trim()) {
         alert("Yanlış İmtahan PIN şifrəsi! Müəllimdən doğru şifrəni alın.");
         return;
       }
@@ -202,7 +206,7 @@ export default function StudentView() {
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {filteredForms.map((frm) => {
-                  const hasPin = frm.exam_pin && frm.exam_pin.trim() !== "";
+                  const hasPin = (frm.access_pin && frm.access_pin.trim() !== "") || frm.is_private === true;
                   return (
                     <div key={frm.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", background: COLORS.paper, borderRadius: 12, border: `1px solid ${COLORS.paperLine}`, flexWrap: "wrap", gap: 12 }}>
                       <div>
@@ -252,7 +256,7 @@ export default function StudentView() {
             {selectedExam.title} ({selectedExam.subject})
           </h3>
           <p style={{ fontSize: 13, color: COLORS.inkSoft, marginBottom: 20 }}>
-            İmtahana başlamaq üçün ad və soyadınızı {selectedExam.exam_pin ? "və müəllimin verdiyi PIN şifrəni" : ""} daxil edin.
+            İmtahana başlamaq üçün ad və soyadınızı {(selectedExam.access_pin && selectedExam.access_pin.trim() !== "") || selectedExam.is_private ? "və müəllimin verdiyi PIN şifrəni" : ""} daxil edin.
           </p>
 
           <form onSubmit={handleStartExam} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -265,10 +269,10 @@ export default function StudentView() {
               autoFocus
             />
 
-            {selectedExam.exam_pin && selectedExam.exam_pin.trim() !== "" && (
+            {((selectedExam.access_pin && selectedExam.access_pin.trim() !== "") || selectedExam.is_private) && (
               <input
                 type="text"
-                placeholder="İmtahan PIN Şifrəsi (Məs: 3636)"
+                placeholder="İmtahan PIN Şifrəsi (Məs: 1234)"
                 value={enteredPin}
                 onChange={(e) => setEnteredPin(e.target.value)}
                 style={{ width: "100%", padding: "12px 16px", borderRadius: 8, border: `1px solid ${COLORS.paperLine}`, background: COLORS.paper, fontSize: 14, outline: "none", boxSizing: "border-box" }}
