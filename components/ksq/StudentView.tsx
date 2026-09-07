@@ -21,6 +21,7 @@ interface FormItem {
   subject: string;
   code: string;
   questions: Question[];
+  created_at?: string;
 }
 
 export default function StudentView() {
@@ -181,7 +182,7 @@ export default function StudentView() {
           <div style={{ marginBottom: 20 }}>
             <input
               type="text"
-              placeholder="🔍 Fənn adı, başlıq və ya kod axtar..."
+              placeholder="🔍 Fənn adı, başlıq, müəllim və ya kod axtar..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{ width: "100%", padding: "12px 16px", borderRadius: 12, border: `1px solid ${COLORS.paperLine}`, background: COLORS.card, fontSize: 14, outline: "none", boxSizing: "border-box" }}
@@ -190,7 +191,7 @@ export default function StudentView() {
 
           <div style={{ background: COLORS.card, border: `1px solid ${COLORS.paperLine}`, borderRadius: 16, padding: "24px" }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, color: COLORS.ink, margin: "0 0 16px 0" }}>
-              Aktiv İmtahanlar Siyahısı
+              📚 Aktiv İmtahanlar Siyahısı
             </h3>
 
             {loading ? (
@@ -211,8 +212,9 @@ export default function StudentView() {
                         </span>
                       </div>
                       <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.ink }}>{frm.title}</div>
-                      <div style={{ fontSize: 12.5, color: COLORS.inkSoft, marginTop: 2 }}>
-                        Müəllim: <strong>{frm.teacher_name}</strong> • Sual sayı: {frm.questions.length}
+                      <div style={{ fontSize: 12.5, color: COLORS.inkSoft, marginTop: 4 }}>
+                        👨‍🏫 Müəllim: <strong>{frm.teacher_name}</strong> • 📝 Sual sayı: <strong>{frm.questions ? frm.questions.length : 0}</strong>
+                        {frm.created_at && ` • 📅 Tarix: ${new Date(frm.created_at).toLocaleDateString("az-AZ")}`}
                       </div>
                     </div>
 

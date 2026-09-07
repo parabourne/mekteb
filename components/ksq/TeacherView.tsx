@@ -14,6 +14,16 @@ interface Question {
   correct: string;
 }
 
+interface ExamItem {
+  id: number;
+  teacher_name: string;
+  title: string;
+  subject: string;
+  code: string;
+  questions: Question[];
+  created_at?: string;
+}
+
 interface StudentResult {
   id: number;
   exam_title: string;
@@ -25,7 +35,7 @@ interface StudentResult {
 }
 
 export default function TeacherView() {
-  const [activeTab, setActiveTab] = useState<"create" | "results">("create");
+  const [activeTab, setActiveTab] = useState<"create" | "exams" | "results">("create");
 
   // Test yaratmaq üçün state-lər
   const [teacherName, setTeacherName] = useState("");
@@ -36,6 +46,10 @@ export default function TeacherView() {
     { id: 1, text: "", optA: "", optB: "", optC: "", optD: "", correct: "A" }
   ]);
   const [loading, setLoading] = useState(false);
+
+  // İmtahanlar siyahısı üçün state-lər
+  const [examsList, setExamsList] = useState<ExamItem[]>([]);
+  const [examsLoading, setExamsLoading] = useState(false);
 
   // Nəticələr üçün state-lər
   const [results, setResults] = useState<StudentResult[]>([]);
@@ -77,16 +91,35 @@ export default function TeacherView() {
 
       if (error) throw error;
 
-      alert("İmtahan uğurla bulud bazasına (Supabase) yadda saxlanıldı!");
+      alert("İmtahan uğurla bulud bazasına yadda saxlanıldı!");
       setTitle("");
       setCode("");
       setQuestions([{ id: 1, text: "", optA: "", optB: "", optC: "", optD: "", correct: "A" }]);
+      
+      // Əgər imtahanlar tabı açıqdısa və ya yeniləmək lazımsa
+      fetchExamsList();
     } catch (err: any) {
       console.error(err);
       alert("Xəta baş verdi: " + err.message);
     } finally {
       setLoading(false);
     }
+  };
+
+  // İmtahanları bazadan çəkmək
+  const fetchExamsList = async () => {
+    setExamsLoading(true);
+    const { data, error } = await supabase
+      .from("exams")
+      .select("*")
+      .order("id", { ascending: false });
+
+    if (error) {
+      console.error("İmtahanlar çəkilərkən xəta:", error.message);
+    } else if (data) {
+      setExamsList(data);
+    }
+    setExamsLoading(false);
   };
 
   // Şagird nəticələrini Supabase-dən çəkmək
@@ -106,7 +139,9 @@ export default function TeacherView() {
   };
 
   useEffect(() => {
-    if (activeTab === "results") {
+    if (activeTab === "exams") {
+      fetchExamsList();
+    } else if (activeTab === "results") {
       fetchResults();
     }
   }, [activeTab]);
@@ -119,12 +154,10 @@ export default function TeacherView() {
     );
   });
 
-  // PDF kimi Çap Etmə Funksiyası
   const handlePrintPDF = () => {
     window.print();
   };
 
-  // Nəticələri Mətn Şəklində Kopyalamaq (WhatsApp üçün)
   const handleCopyResults = () => {
     let text = "📊 Şagird İmtahan Nəticələri:\n\n";
     filteredResults.forEach((res, index) => {
@@ -132,7 +165,7 @@ export default function TeacherView() {
     });
 
     navigator.clipboard.writeText(text);
-    alert("Nəticələr mübadilə buferinə (clipboard) kopyalandı! İstənilən yerə yapışdıra bilərsiniz.");
+    alert("Nəticələr kopyalandı!");
   };
 
   return (
@@ -143,16 +176,16 @@ export default function TeacherView() {
             Müəllim İmtahan Paneli
           </h1>
           <p style={{ fontSize: 14, color: COLORS.inkSoft, marginTop: 4 }}>
-            Testlər yaradın və şagirdlərin nəticələrini izləyin.
+            Testlər yaradın, paylaşılan imtahanları və şagird nəticələrini izləyin.
           </p>
         </div>
 
         {/* Tab Keçid Düymələri */}
-        <div style={{ display: "flex", background: COLORS.card, border: `1px solid ${COLORS.paperLine}`, borderRadius: 10, padding: 4 }}>
+        <div style={{ display: "flex", background: COLORS.card, border: `1px solid ${COLORS.paperLine}`, borderRadius: 10, padding: 4, gap: 4 }}>
           <button
             onClick={() => setActiveTab("create")}
             style={{
-              padding: "8px 16px",
+              padding: "8px 14px",
               borderRadius: 8,
               border: "none",
               background: activeTab === "create" ? COLORS.ink : "transparent",
@@ -165,9 +198,24 @@ export default function TeacherView() {
             ✏️ Test Yarat
           </button>
           <button
+            onClick={() => setActiveTab("exams")}
+            style={{
+              padding: "8px 14px",
+              borderRadius: 8,
+              border: "none",
+              background: activeTab === "exams" ? COLORS.ink : "transparent",
+              color: activeTab === "exams" ? "#fff" : COLORS.ink,
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            📚 İmtahanlar
+          </button>
+          <button
             onClick={() => setActiveTab("results")}
             style={{
-              padding: "8px 16px",
+              padding: "8px 14px",
               borderRadius: 8,
               border: "none",
               background: activeTab === "results" ? COLORS.ink : "transparent",
@@ -177,7 +225,7 @@ export default function TeacherView() {
               cursor: "pointer",
             }}
           >
-            📊 Şagird Nəticələri
+            📊 Nəticələr
           </button>
         </div>
       </div>
@@ -299,6 +347,40 @@ export default function TeacherView() {
             {loading ? "Yüklənir..." : "Testi Buluda Yadda Saxla"}
           </button>
         </form>
+      ) : activeTab === "exams" ? (
+        /* Mövcud İmtahanlar Siyahısı (Yalnız baxış - Müəllif, Kod, Sual sayı və Tarix ilə) */
+        <div style={{ background: COLORS.card, border: `1px solid ${COLORS.paperLine}`, borderRadius: 16, padding: "20px" }}>
+          <h2 style={{ fontSize: 16, fontWeight: 700, color: COLORS.ink, marginBottom: 16 }}>
+            📚 Yaradılmış Bütün İmtahanlar (Lent)
+          </h2>
+          {examsLoading ? (
+            <p style={{ fontSize: 13, color: COLORS.inkSoft }}>İmtahanlar yüklənir...</p>
+          ) : examsList.length === 0 ? (
+            <p style={{ fontSize: 13, color: COLORS.inkSoft }}>Hələ ki heç bir imtahan yaradılmayıb.</p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {examsList.map((exam) => (
+                <div key={exam.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px", background: COLORS.paper, borderRadius: 10, border: `1px solid ${COLORS.paperLine}`, flexWrap: "wrap", gap: 10 }}>
+                  <div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.ink }}>
+                      {exam.title} <span style={{ fontSize: 13, fontWeight: 400, color: COLORS.inkSoft }}>({exam.subject})</span>
+                    </div>
+                    <div style={{ fontSize: 13, color: COLORS.inkSoft, marginTop: 4 }}>
+                      👨‍🏫 Müəllim: <strong>{exam.teacher_name}</strong> • 🔑 Kod: <code style={{ background: COLORS.card, padding: "2px 6px", borderRadius: 4 }}>{exam.code}</code>
+                      {exam.created_at && ` • 📅 ${new Date(exam.created_at).toLocaleDateString("az-AZ")}`}
+                    </div>
+                  </div>
+
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.green }}>
+                      📝 {exam.questions ? exam.questions.length : 0} Sual
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       ) : (
         /* Şagird Nəticələri Bölməsi */
         <div>
@@ -311,7 +393,6 @@ export default function TeacherView() {
               style={{ flex: 1, minWidth: "200px", padding: "10px 14px", borderRadius: 8, border: `1px solid ${COLORS.paperLine}`, background: COLORS.card, fontSize: 14, outline: "none", boxSizing: "border-box" }}
             />
             
-            {/* Çap və Kopyalama Düymələri */}
             <button
               onClick={handlePrintPDF}
               style={{ padding: "10px 14px", borderRadius: 8, border: `1px solid ${COLORS.paperLine}`, background: COLORS.card, color: COLORS.ink, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
