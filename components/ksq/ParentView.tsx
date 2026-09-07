@@ -6,12 +6,20 @@ import { supabase } from "@/lib/ksq/supabase";
 
 interface StudentResult {
   id: number;
+  exam_id: number;
   exam_title: string;
   student_name: string;
   score: number;
   total_questions: number;
   percentage: number;
   created_at: string;
+}
+
+interface QuestionItem {
+  id: number;
+  question?: string;
+  correct_answer?: string;
+  [key: string]: any;
 }
 
 export default function ParentView() {
@@ -21,6 +29,7 @@ export default function ParentView() {
   const [searched, setSearched] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [resultData, setResultData] = useState<StudentResult | null>(null);
+  const [examQuestions, setExamQuestions] = useState<QuestionItem[]>([]);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,11 +45,12 @@ export default function ParentView() {
     setSearched(false);
     setErrorMessage(null);
     setResultData(null);
+    setExamQuestions([]);
 
     try {
       const { data: examData, error: examErr } = await supabase
         .from("exams")
-        .select("id, is_private, access_pin, code, title")
+        .select("id, is_private, access_pin, code, title, questions")
         .or(`access_pin.ilike.${cleanPin},exam_pin.ilike.${cleanPin}`)
         .maybeSingle();
 
@@ -51,6 +61,11 @@ export default function ParentView() {
         setSearched(true);
         setLoading(false);
         return;
+      }
+
+      // İmtahana aid sualları yadda saxlayaq ki, çapda istifadə edə bilək
+      if (examData.questions && Array.isArray(examData.questions)) {
+        setExamQuestions(examData.questions);
       }
 
       const { data, error } = await supabase
@@ -77,9 +92,22 @@ export default function ParentView() {
     }
   };
 
-  // Yeni və 100% işlək çap funksiyası (menyuları və digər hər şeyi kənarda qoyur)
+  // Yalnız çap pəncərəsi üçün təmiz, səliqəli və bütün sualları əhatə edən rəsmi arayış dizaynı
   const handlePrintPDF = () => {
     if (!resultData) return;
+
+    const questionsHtml = examQuestions.length > 0
+      ? examQuestions.map((q, idx) => `
+          <div style="padding: 10px 12px; margin-bottom: 8px; border: 1px solid #e5e7eb; border-radius: 6px; background: #fff;">
+            <div style="font-weight: 600; font-size: 13px; color: #111827; margin-bottom: 4px;">
+              Sual ${idx + 1}: ${q.question || "Sual mətni qeyd olunmayıb"}
+            </div>
+            <div style="font-size: 12px; color: #059669; font-weight: 500;">
+              Düzgün Cavab: ${q.correct_answer || q.opta || "Təyin olunmayıb"}
+            </div>
+          </div>
+        `).join("")
+      : `<p style="font-size: 13px; color: #6b7280; text-align: center;">Bu imtahan üçün sual siyahısı tapılmadı.</p>`;
 
     const printWindow = window.open("", "_blank");
     if (!printWindow) {
@@ -92,26 +120,27 @@ export default function ParentView() {
       <html lang="az">
       <head>
         <meta charset="UTF-8">
-        <title>İmtahan Nəticəsi - ${resultData.student_name}</title>
+        <title>Rəsmi İmtahan Arayışı - ${resultData.student_name}</title>
         <style>
           body {
             font-family: 'Inter', Arial, sans-serif;
             background: #ffffff;
             color: #111827;
-            padding: 40px;
-            max-width: 700px;
+            padding: 30px;
+            max-width: 750px;
             margin: 0 auto;
           }
           .card {
-            border: 1px solid #e5e7eb;
+            border: 1px solid #d1d5db;
             border-radius: 12px;
-            padding: 32px;
+            padding: 24px;
             background: #f9fafb;
           }
           .header {
-            margin-bottom: 24px;
-            border-bottom: 1px solid #e5e7eb;
-            padding-bottom: 16px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 12px;
+            text-align: center;
           }
           .badge {
             font-size: 11px;
@@ -121,40 +150,49 @@ export default function ParentView() {
             letter-spacing: 0.05em;
           }
           h2 {
-            margin: 8px 0 4px 0;
-            font-size: 22px;
+            margin: 6px 0 2px 0;
+            font-size: 20px;
           }
           p {
             margin: 0;
-            font-size: 13px;
-            color: #4b5563;
-          }
-          .grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-            margin-top: 20px;
-          }
-          .box {
-            background: #ffffff;
-            border: 1px solid #e5e7eb;
-            padding: 16px;
-            border-radius: 8px;
-          }
-          .box-title {
             font-size: 12px;
             color: #4b5563;
           }
+          .grid {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+          }
+          .box {
+            flex: 1;
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+          }
+          .box-title {
+            font-size: 11px;
+            color: #4b5563;
+          }
           .box-value {
-            font-size: 22px;
+            font-size: 18px;
             font-weight: 800;
             color: #111827;
-            margin-top: 4px;
+            margin-top: 2px;
+          }
+          .section-title {
+            font-size: 13px;
+            font-weight: 700;
+            margin: 16px 0 8px 0;
+            color: #111827;
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 4px;
           }
           .footer-text {
-            margin-top: 24px;
+            margin-top: 20px;
             text-align: center;
-            font-size: 13px;
+            font-size: 12px;
             color: #4b5563;
           }
         </style>
@@ -162,7 +200,7 @@ export default function ParentView() {
       <body>
         <div class="card">
           <div class="header">
-            <span class="badge">✅ Rəsmi Qiymətləndirmə Nəticəsi</span>
+            <span class="badge">📋 Rəsmi Qiymətləndirmə Arayışı</span>
             <h2>${resultData.student_name}</h2>
             <p>Test: <strong>${resultData.exam_title}</strong> • Tarix: ${new Date(resultData.created_at).toLocaleDateString("az-AZ")}</p>
           </div>
@@ -177,6 +215,9 @@ export default function ParentView() {
               <div class="box-value" style="color: #059669;">%${resultData.percentage}</div>
             </div>
           </div>
+
+          <div class="section-title">İmtahan Sualları və Düzgün Cavablar</div>
+          <div>${questionsHtml}</div>
 
           <div class="footer-text">
             ${
