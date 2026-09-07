@@ -32,8 +32,6 @@ export default function ParentView() {
     setSearched(false);
 
     try {
-      // 1. Əvvəlcə daxil edilən kodla imtahanın olub-olmadığını və ya birbaşa student_results cədvəlindən axtaraq
-      // Qeyd: student_results cədvəlində imtahan kodu yoxdursa, exam_title və ya şagird adına görə süzgəc edirik.
       const { data, error } = await supabase
         .from("student_results")
         .select("*")
@@ -43,12 +41,11 @@ export default function ParentView() {
       if (error) throw error;
 
       if (data && data.length > 0) {
-        // Əgər bir neçə nəticə tapılarsa, kod və ya başlıqla uyğun gələni seçirik
         const matched = data.find(
           (item) =>
             item.exam_title.toLowerCase().includes(formCode.toLowerCase()) ||
             item.exam_title.toLowerCase() === formCode.toLowerCase()
-        ) || data[0]; // Əgər tam kodu tapmasa, ən son nəticəni göstəririk
+        ) || data[0];
 
         setResultData(matched);
       } else {
@@ -253,9 +250,9 @@ export default function ParentView() {
 
                 <div style={{ marginTop: 14, fontSize: 13, color: COLORS.inkSoft, textAlign: "center" }}>
                   {resultData.percentage >= 80
-                    * "Əla nəticədir! Övladınız mövzunu tam mənimsəyib."
+                    ? "Əla nəticədir! Övladınız mövzunu tam mənimsəyib."
                     : resultData.percentage >= 50
-                    * "Yaxşı nəticədir, lakin daha da diqqətli olmaq olar."
+                    ? "Yaxşı nəticədir, lakin daha da diqqətli olmaq olar."
                     : "İnkişaf etdirilməli mövzular var, birgə daha çox çalışmalıyıq."}
                 </div>
               </div>
