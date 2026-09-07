@@ -54,7 +54,7 @@ export default function ParentView() {
         return;
       }
 
-      // 2. Həmin imtahana aid və şagird adının hissəsinə uyğun nəticəni çəkirik (ilike ilə böyük/kiçik hərf problemi aradan qalxır)
+      // 2. Həmin imtahana aid və şagird adının hissəsinə uyğun nəticəni çəkirik
       const { data, error } = await supabase
         .from("student_results")
         .select("*")
@@ -84,12 +84,32 @@ export default function ParentView() {
   };
 
   return (
-    <div style={{ maxWidth: 720, margin: "0 auto", paddingBottom: 40 }}>
+    <div style={{ maxWidth: 720, margin: "0 auto", paddingBottom: 40, fontFamily: "'Inter', sans-serif" }}>
+      {/* Çap üçün xüsusi stillər: A4 formatına uyğunlaşdırır və lazımsız elementləri gizlədir */}
+      <style jsx global>{`
+        @media print {
+          body {
+            background: #ffffff !important;
+            color: #000000 !important;
+          }
+          .no-print {
+            display: none !important;
+          }
+          .print-container {
+            border: none !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            width: 100% !important;
+            background: #ffffff !important;
+          }
+        }
+      `}</style>
+
       {/* Səhifə Başlığı */}
       <div style={{ marginBottom: 28 }} className="no-print">
         <h1
           style={{
-            fontFamily: "'Inter', sans-serif",
             fontSize: 24,
             fontWeight: 800,
             color: COLORS.ink,
@@ -204,6 +224,7 @@ export default function ParentView() {
       {/* Nəticə Bloku */}
       {searched && (
         <div
+          className="print-container"
           style={{
             marginTop: 28,
             padding: "24px",
