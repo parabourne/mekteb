@@ -55,6 +55,7 @@ export default function TeacherView() {
   const [results, setResults] = useState<StudentResult[]>([]);
   const [resultsLoading, setResultsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
   const handleAddQuestion = () => {
     setQuestions([
@@ -96,7 +97,6 @@ export default function TeacherView() {
       setCode("");
       setQuestions([{ id: 1, text: "", optA: "", optB: "", optC: "", optD: "", correct: "A" }]);
       
-      // Əgər imtahanlar tabı açıqdısa və ya yeniləmək lazımsa
       fetchExamsList();
     } catch (err: any) {
       console.error(err);
@@ -106,7 +106,6 @@ export default function TeacherView() {
     }
   };
 
-  // İmtahanları bazadan çəkmək
   const fetchExamsList = async () => {
     setExamsLoading(true);
     const { data, error } = await supabase
@@ -122,7 +121,6 @@ export default function TeacherView() {
     setExamsLoading(false);
   };
 
-  // Şagird nəticələrini Supabase-dən çəkmək
   const fetchResults = async () => {
     setResultsLoading(true);
     const { data, error } = await supabase
@@ -154,23 +152,60 @@ export default function TeacherView() {
     );
   });
 
-  const handlePrintPDF = () => {
-    window.print();
+  // Checkbox seçimlərini idarə etmək
+  const toggleSelect = (id: number) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filteredResults.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredResults.map((r) => r.id));
+    }
+  };
+
+  // Çap funksiyaları
+  const handlePrint = (singleId?: number) => {
+    if (singleId) {
+      setSelectedIds([singleId]);
+      setTimeout(() => window.print(), 100);
+    } else {
+      window.print();
+    }
+  };
+
+  // Kopyalama funksiyaları
+  const copySingleResult = (res: StudentResult) => {
+    const text = `Şagird: ${res.student_name} | Test: ${res.exam_title} | Bal: ${res.score}/${res.total_questions} (${res.percentage}%)`;
+    navigator.clipboard.writeText(text);
+    alert(`${res.student_name} üçün nəticə kopyalandı!`);
   };
 
   const handleCopyResults = () => {
+    const targetResults = selectedIds.length > 0
+      ? filteredResults.filter((r) => selectedIds.includes(r.id))
+      : filteredResults;
+
+    if (targetResults.length === 0) {
+      alert("Kopyalamaq üçün heç bir nəticə yoxdur!");
+      return;
+    }
+
     let text = "📊 Şagird İmtahan Nəticələri:\n\n";
-    filteredResults.forEach((res, index) => {
+    targetResults.forEach((res, index) => {
       text += `${index + 1}. ${res.student_name} - Test: ${res.exam_title} - Bal: ${res.score}/${res.total_questions} (${res.percentage}%)\n`;
     });
 
     navigator.clipboard.writeText(text);
-    alert("Nəticələr kopyalandı!");
+    alert(`${targetResults.length} şagirdin nəticəsi kopyalandı!`);
   };
 
   return (
     <div style={{ maxWidth: 800, margin: "0 auto", paddingBottom: 50 }}>
-      <div style={{ marginBottom: 24, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+      <div style={{ marginBottom: 24, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }} className="no-print">
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 800, color: COLORS.ink, margin: 0 }}>
             Müəllim İmtahan Paneli
@@ -348,7 +383,7 @@ export default function TeacherView() {
           </button>
         </form>
       ) : activeTab === "exams" ? (
-        /* Mövcud İmtahanlar Siyahısı (Yalnız baxış - Müəllif, Kod, Sual sayı və Tarix ilə) */
+        /* Mövcud İmtahanlar Siyahısı */
         <div style={{ background: COLORS.card, border: `1px solid ${COLORS.paperLine}`, borderRadius: 16, padding: "20px" }}>
           <h2 style={{ fontSize: 16, fontWeight: 700, color: COLORS.ink, marginBottom: 16 }}>
             📚 Yaradılmış Bütün İmtahanlar (Lent)
@@ -382,9 +417,9 @@ export default function TeacherView() {
           )}
         </div>
       ) : (
-        /* Şagird Nəticələri Bölməsi */
+        /* Şagird Nəticələri Bölməsi (Seçim Sistemi Və Fərdi Düymələrlə) */
         <div>
-          <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap", alignItems: "center", justifyContent: "space-between" }} className="no-print">
             <input
               type="text"
               placeholder="🔍 Şagird adı və ya test başlığı ilə axtar..."
@@ -393,53 +428,129 @@ export default function TeacherView() {
               style={{ flex: 1, minWidth: "200px", padding: "10px 14px", borderRadius: 8, border: `1px solid ${COLORS.paperLine}`, background: COLORS.card, fontSize: 14, outline: "none", boxSizing: "border-box" }}
             />
             
-            <button
-              onClick={handlePrintPDF}
-              style={{ padding: "10px 14px", borderRadius: 8, border: `1px solid ${COLORS.paperLine}`, background: COLORS.card, color: COLORS.ink, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
-            >
-              🖨️ PDF Çap Et
-            </button>
-            <button
-              onClick={handleCopyResults}
-              style={{ padding: "10px 14px", borderRadius: 8, border: `1px solid ${COLORS.paperLine}`, background: COLORS.card, color: COLORS.ink, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
-            >
-              📋 Nəticələri Kopyala
-            </button>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                onClick={() => handlePrint()}
+                style={{ padding: "10px 14px", borderRadius: 8, border: `1px solid ${COLORS.paperLine}`, background: COLORS.card, color: COLORS.ink, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+              >
+                🖨️ {selectedIds.length > 0 ? "Seçilənləri Çap Et" : "PDF Çap Et"}
+              </button>
+              <button
+                onClick={handleCopyResults}
+                style={{ padding: "10px 14px", borderRadius: 8, border: `1px solid ${COLORS.paperLine}`, background: COLORS.card, color: COLORS.ink, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+              >
+                📋 {selectedIds.length > 0 ? "Seçilənləri Kopyala" : "Nəticələri Kopyala"}
+              </button>
+            </div>
           </div>
 
           <div style={{ background: COLORS.card, border: `1px solid ${COLORS.paperLine}`, borderRadius: 16, padding: "20px" }}>
+            {/* Hamısını Seç Control Header-ı */}
+            {filteredResults.length > 0 && (
+              <div style={{ paddingBottom: 12, marginBottom: 12, borderBottom: `1px solid ${COLORS.paperLine}`, display: "flex", alignItems: "center", gap: 8 }} className="no-print">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.length === filteredResults.length && filteredResults.length > 0}
+                  onChange={toggleSelectAll}
+                  style={{ cursor: "pointer", width: 16, height: 16 }}
+                />
+                <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
+                  Hamısını Seç ({selectedIds.length} seçilib)
+                </span>
+              </div>
+            )}
+
             {resultsLoading ? (
               <p style={{ fontSize: 13, color: COLORS.inkSoft }}>Nəticələr yüklənir...</p>
             ) : filteredResults.length === 0 ? (
               <p style={{ fontSize: 13, color: COLORS.inkSoft }}>Hələ ki heç bir şagird nəticəsi tapılmadı.</p>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {filteredResults.map((res) => (
-                  <div key={res.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", background: COLORS.paper, borderRadius: 10, border: `1px solid ${COLORS.paperLine}`, flexWrap: "wrap", gap: 10 }}>
-                    <div>
-                      <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.ink }}>
-                        {res.student_name}
-                      </div>
-                      <div style={{ fontSize: 12, color: COLORS.inkSoft, marginTop: 2 }}>
-                        Test: <strong>{res.exam_title}</strong> • Tarix: {new Date(res.created_at).toLocaleDateString("az-AZ")}
-                      </div>
-                    </div>
+                {filteredResults.map((res) => {
+                  const isSelected = selectedIds.includes(res.id);
+                  const isHiddenInPrint = selectedIds.length > 0 && !isSelected;
 
-                    <div style={{ textAlign: "right" }}>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.green }}>
-                        {res.score} / {res.total_questions} bal
+                  return (
+                    <div
+                      key={res.id}
+                      className={isHiddenInPrint ? "no-print" : ""}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        padding: "14px 16px",
+                        background: COLORS.paper,
+                        borderRadius: 10,
+                        border: `1px solid ${isSelected ? COLORS.green : COLORS.paperLine}`,
+                        flexWrap: "wrap",
+                        gap: 10,
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelect(res.id)}
+                          className="no-print"
+                          style={{ cursor: "pointer", width: 16, height: 16 }}
+                        />
+                        <div>
+                          <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.ink }}>
+                            {res.student_name}
+                          </div>
+                          <div style={{ fontSize: 12, color: COLORS.inkSoft, marginTop: 2 }}>
+                            Test: <strong>{res.exam_title}</strong> • Tarix: {new Date(res.created_at).toLocaleDateString("az-AZ")}
+                          </div>
+                        </div>
                       </div>
-                      <div style={{ fontSize: 11, color: COLORS.inkSoft }}>
-                        (%{res.percentage})
+
+                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <div style={{ textAlign: "right" }}>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.green }}>
+                            {res.score} / {res.total_questions} bal
+                          </div>
+                          <div style={{ fontSize: 11, color: COLORS.inkSoft }}>
+                            (%{res.percentage})
+                          </div>
+                        </div>
+
+                        {/* Hər şagirdə özəl Çap və Kopyala düymələri */}
+                        <div style={{ display: "flex", gap: 6 }} className="no-print">
+                          <button
+                            type="button"
+                            onClick={() => copySingleResult(res)}
+                            title="Bu nəticəni kopyala"
+                            style={{ padding: "6px 10px", background: COLORS.card, border: `1px solid ${COLORS.paperLine}`, borderRadius: 6, cursor: "pointer", fontSize: 13 }}
+                          >
+                            📋
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handlePrint(res.id)}
+                            title="Yalnız bu şagirdi çap et"
+                            style={{ padding: "6px 10px", background: COLORS.card, border: `1px solid ${COLORS.paperLine}`, borderRadius: 6, cursor: "pointer", fontSize: 13 }}
+                          >
+                            🖨️
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
         </div>
       )}
+
+      {/* Çap Zamanı Lazımsız İnterfeys Elementlərini Gizlədən CSS Stili */}
+      <style jsx global>{`
+        @media print {
+          .no-print {
+            display: none !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }
