@@ -15,7 +15,6 @@ interface StudentResult {
 }
 
 export default function ParentView() {
-  const [formCode, setFormCode] = useState("");
   const [childName, setChildName] = useState("");
   const [pinCode, setPinCode] = useState("");
   const [loading, setLoading] = useState(false);
@@ -25,12 +24,11 @@ export default function ParentView() {
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanCode = formCode.trim();
     const cleanName = childName.trim();
     const cleanPin = pinCode.trim();
 
-    if (!cleanCode || !cleanName) {
-      alert("Zəhmət olmasa imtahan kodunu/başlığını və şagirdin adını daxil edin.");
+    if (!cleanName || !cleanPin) {
+      alert("Zəhmət olmasa şagirdin adını və imtahan PIN kodunu daxil edin.");
       return;
     }
 
@@ -40,37 +38,28 @@ export default function ParentView() {
     setResultData(null);
 
     try {
-      // 1. İmtahanın özəl (is_private) və PIN tələb edib-etmədiyini check edirik
+      // 1. Daxil edilən PIN-ə uyğun imtahanı tapırıq (böyük/kiçik hərf fərqi olmadan)
       const { data: examData, error: examErr } = await supabase
         .from("exams")
-        .select("is_private, exam_pin, code, title")
-        .or(`code.ilike.%${cleanCode}%,title.ilike.%${cleanCode}%`)
+        .select("id, is_private, access_pin, code, title")
+        .or(`access_pin.ilike.${cleanPin},exam_pin.ilike.${cleanPin}`)
         .maybeSingle();
 
       if (examErr) console.warn("İmtahan statusu yoxlanılarkən xəbərdarlıq:", examErr.message);
 
-      // Əgər imtahan tapılıbsa və özəldirsə PIN yoxlanılır
-      if (examData && examData.is_private) {
-        if (!cleanPin) {
-          setErrorMessage("Bu özəl imtahandır. Zəhmət olmasa təyin edilmiş PIN kodu daxil edin.");
-          setSearched(true);
-          setLoading(false);
-          return;
-        }
-        if (examData.exam_pin && examData.exam_pin !== cleanPin) {
-          setErrorMessage("Daxil etdiyiniz PIN kod yanlışdır.");
-          setSearched(true);
-          setLoading(false);
-          return;
-        }
+      if (!examData) {
+        setErrorMessage("Daxil etdiyiniz PIN koda uyğun imtahan tapılmadı.");
+        setSearched(true);
+        setLoading(false);
+        return;
       }
 
-      // 2. Şagird nəticəsini bazadan çəkirik
+      // 2. Həmin imtahana aid və şagird adının hissəsinə uyğun nəticəni çəkirik (ilike ilə böyük/kiçik hərf problemi aradan qalxır)
       const { data, error } = await supabase
         .from("student_results")
         .select("*")
+        .eq("exam_id", examData.id)
         .ilike("student_name", `%${cleanName}%`)
-        .or(`exam_title.ilike.%${cleanCode}%,exam_code.ilike.%${cleanCode}%`)
         .order("created_at", { ascending: false })
         .limit(1);
 
@@ -111,7 +100,7 @@ export default function ParentView() {
           Valideyn İzləmə Paneli
         </h1>
         <p style={{ fontSize: 14, color: COLORS.inkSoft, marginTop: 6 }}>
-          Övladınızın KSQ və BSQ qiymətləndirmə nəticələrini izləmək üçün məlumatları daxil edin.
+          Övladınızın nəticəsini görmək üçün şagirdin adını və müəllimin verdiyi PIN kodu daxil edin.
         </p>
       </div>
 
@@ -127,37 +116,6 @@ export default function ParentView() {
         }}
       >
         <form onSubmit={handleSearch} style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-          <div>
-            <label
-              style={{
-                display: "block",
-                fontSize: 13,
-                fontWeight: 600,
-                color: COLORS.ink,
-                marginBottom: 8,
-              }}
-            >
-              Forma Kodu / İmtahan Başlığı
-            </label>
-            <input
-              type="text"
-              placeholder="Məsələn: KSQ-1 və ya Riyaziyyat"
-              value={formCode}
-              onChange={(e) => setFormCode(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "12px 16px",
-                borderRadius: 8,
-                border: `1px solid ${COLORS.paperLine}`,
-                background: COLORS.paper,
-                fontSize: 14,
-                color: COLORS.ink,
-                outline: "none",
-                boxSizing: "border-box",
-              }}
-            />
-          </div>
-
           <div>
             <label
               style={{
@@ -199,13 +157,10 @@ export default function ParentView() {
                 marginBottom: 8,
               }}
             >
-              İmtahan PIN Kodu{" "}
-              <span style={{ fontSize: 11, color: COLORS.inkSoft, fontWeight: 400 }}>
-                (İmtahan özəldirsə daxil edin)
-              </span>
+              İmtahan PIN Kodu
             </label>
             <input
-              type="password"
+              type="text"
               placeholder="Məsələn: 1234"
               value={pinCode}
               onChange={(e) => setPinCode(e.target.value)}
@@ -260,10 +215,10 @@ export default function ParentView() {
           {errorMessage ? (
             <div>
               <span style={{ fontSize: 12, fontWeight: 700, color: "#e53e3e", textTransform: "uppercase" }}>
-                🔒 Giriş Məhdudlaşdırıldı
+                🔒 Tapılmadı
               </span>
               <h3 style={{ margin: "6px 0 4px", fontSize: 16, color: COLORS.ink }}>
-                PIN Kod Xətası
+                Məlumat Tapılmadı
               </h3>
               <p style={{ margin: 0, fontSize: 13, color: COLORS.inkSoft }}>{errorMessage}</p>
             </div>
@@ -342,7 +297,7 @@ export default function ParentView() {
                 "{childName}" üçün nəticə tapılmadı
               </h3>
               <p style={{ margin: 0, fontSize: 13, color: COLORS.inkSoft }}>
-                Zəhmət olmasa şagirdin adını və forma kodunu düzgün yazdığınızdan əmin olun və ya müəllimlə əlaqə saxlayın.
+                Zəhmət olmasa şagirdin adını və PIN kodu düzgün yazdığınızdan əmin olun.
               </p>
             </div>
           )}
