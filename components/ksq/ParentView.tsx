@@ -38,7 +38,6 @@ export default function ParentView() {
     setResultData(null);
 
     try {
-      // 1. Daxil edilən PIN-ə uyğun imtahanı tapırıq (böyük/kiçik hərf fərqi olmadan)
       const { data: examData, error: examErr } = await supabase
         .from("exams")
         .select("id, is_private, access_pin, code, title")
@@ -54,7 +53,6 @@ export default function ParentView() {
         return;
       }
 
-      // 2. Həmin imtahana aid və şagird adının hissəsinə uyğun nəticəni çəkirik
       const { data, error } = await supabase
         .from("student_results")
         .select("*")
@@ -85,16 +83,14 @@ export default function ParentView() {
 
   return (
     <div style={{ maxWidth: 720, margin: "0 auto", paddingBottom: 40, fontFamily: "'Inter', sans-serif" }}>
-      {/* Çap üçün xüsusi stillər: A4 formatına uyğunlaşdırır və lazımsız elementləri gizlədir */}
+      {/* Çap zamanı işləyəcək sadə və etibarlı stillər */}
       <style jsx global>{`
         @media print {
-          body {
-            background: #ffffff !important;
-            color: #000000 !important;
-          }
+          /* Axtarış formasını, başlığı və düymələri çapda gizlədirik */
           .no-print {
             display: none !important;
           }
+          /* Nəticə qutusunu səhifəyə tam uyğunlaşdırırıq */
           .print-container {
             border: none !important;
             box-shadow: none !important;
@@ -103,10 +99,14 @@ export default function ParentView() {
             width: 100% !important;
             background: #ffffff !important;
           }
+          body {
+            background: #ffffff !important;
+            color: #000000 !important;
+          }
         }
       `}</style>
 
-      {/* Səhifə Başlığı */}
+      {/* Səhifə Başlığı (Çapda gizlənir) */}
       <div style={{ marginBottom: 28 }} className="no-print">
         <h1
           style={{
@@ -124,7 +124,7 @@ export default function ParentView() {
         </p>
       </div>
 
-      {/* Axtarış Formu Kartı */}
+      {/* Axtarış Formu Kartı (Çapda gizlənir) */}
       <div
         className="no-print"
         style={{
