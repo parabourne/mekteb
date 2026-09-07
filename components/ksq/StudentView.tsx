@@ -26,18 +26,16 @@ interface FormItem {
 
 export default function StudentView() {
   const [studentName, setStudentName] = useState("");
-  const [isNameSaved, setIsNameSaved] = useState(false);
-
   const [savedForms, setSavedForms] = useState<FormItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
 
+  const [selectedExam, setSelectedExam] = useState<FormItem | null>(null);
   const [currentExam, setCurrentExam] = useState<FormItem | null>(null);
   const [answers, setAnswers] = useState<{ [key: number]: string }>({});
   const [submitted, setSubmitted] = useState(false);
   const [score, setScore] = useState(0);
 
-  // Bazadan bütün testləri çəkmək
   const fetchExams = async () => {
     setLoading(true);
     const { data, error } = await supabase
@@ -57,17 +55,14 @@ export default function StudentView() {
     fetchExams();
   }, []);
 
-  const handleSaveName = (e: React.FormEvent) => {
+  const handleStartExam = (e: React.FormEvent) => {
     e.preventDefault();
     if (!studentName.trim()) {
       alert("Zəhmət olmasa ad və soyadınızı daxil edin!");
       return;
     }
-    setIsNameSaved(true);
-  };
-
-  const handleStartExam = (form: FormItem) => {
-    setCurrentExam(form);
+    setCurrentExam(selectedExam);
+    setSelectedExam(null);
     setAnswers({});
     setSubmitted(false);
     setScore(0);
@@ -82,7 +77,6 @@ export default function StudentView() {
     });
   };
 
-  // Cavabları yoxla, nəticəni hesabla və Supabase-ə yaz
   const handleSubmitExam = async () => {
     if (!currentExam) return;
 
@@ -100,7 +94,6 @@ export default function StudentView() {
     setSubmitted(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
 
-    // Buluda (student_results cədvəlinə) yazılma
     const { error } = await supabase.from("student_results").insert([
       {
         exam_id: currentExam.id,
@@ -117,87 +110,66 @@ export default function StudentView() {
     }
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
-
   const filteredForms = savedForms.filter((frm) => {
     const query = searchQuery.trim().toLowerCase();
     return (
-      frm.code.toLowerCase().includes(query) ||
-      frm.title.toLowerCase().includes(query) ||
-      frm.subject.toLowerCase().includes(query) ||
-      frm.teacher_name.toLowerCase().includes(query)
+      frm.code?.toLowerCase().includes(query) ||
+      frm.title?.toLowerCase().includes(query) ||
+      frm.subject?.toLowerCase().includes(query) ||
+      frm.teacher_name?.toLowerCase().includes(query)
     );
   });
 
   return (
     <div style={{ maxWidth: 800, margin: "0 auto", paddingBottom: 50 }}>
-      <div style={{ marginBottom: 28 }} className="no-print">
+      <div style={{ marginBottom: 24 }} className="no-print">
         <h1 style={{ fontSize: 24, fontWeight: 800, color: COLORS.ink, margin: 0 }}>
-          Şagird İmtahan Portalı (Bulud)
+          Şagird İmtahan Portalı
         </h1>
         <p style={{ fontSize: 14, color: COLORS.inkSoft, marginTop: 6 }}>
-          Müəllimlərin bulada yüklədiyi KSQ və BSQ testlərini seçin və onlayn həll edin.
+          Müəllimlər tərəfindən yerləşdirilən imtahanları axtarın və həll edin.
         </p>
       </div>
 
-      {!isNameSaved && (
-        <div style={{ background: COLORS.card, border: `1px solid ${COLORS.paperLine}`, borderRadius: 16, padding: "32px", boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.02)" }}>
-          <h3 style={{ fontSize: 16, fontWeight: 700, color: COLORS.ink, margin: "0 0 14px 0" }}>
-            Zəhmət olmasa imtahana başlamazdan əvvəl ad və soyadınızı yazın:
-          </h3>
-          <form onSubmit={handleSaveName} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <input
-              type="text"
-              placeholder="Məsələn: Leyla Məmmədova"
-              value={studentName}
-              onChange={(e) => setStudentName(e.target.value)}
-              style={{ width: "100%", padding: "12px 16px", borderRadius: 8, border: `1px solid ${COLORS.paperLine}`, background: COLORS.paper, fontSize: 14, outline: "none", boxSizing: "border-box" }}
-            />
-            <button type="submit" style={{ background: COLORS.green, color: "#fff", border: "none", borderRadius: 8, padding: "12px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
-              Davam Et →
-            </button>
-          </form>
-        </div>
-      )}
-
-      {isNameSaved && !currentExam && (
+      {!currentExam && !selectedExam && (
         <div>
-          <div style={{ background: COLORS.card, border: `1px solid ${COLORS.paperLine}`, borderRadius: 16, padding: "20px 24px", marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <div style={{ fontSize: 12, color: COLORS.inkSoft }}>Daxil olan şagird:</div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.ink }}>{studentName}</div>
-            </div>
-            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-              <button onClick={fetchExams} style={{ background: COLORS.paper, border: `1px solid ${COLORS.paperLine}`, borderRadius: 6, padding: "6px 12px", fontSize: 12, cursor: "pointer" }}>
-                🔄 Yenilə
-              </button>
-              <button onClick={() => setIsNameSaved(false)} style={{ background: "transparent", border: "none", color: COLORS.inkSoft, fontSize: 12, cursor: "pointer", textDecoration: "underline" }}>
-                Adı dəyiş
-              </button>
-            </div>
-          </div>
-
-          <div style={{ marginBottom: 20 }}>
+          {/* Axtarış Qutusu */}
+          <div style={{ marginBottom: 20, display: "flex", gap: 10 }}>
             <input
               type="text"
-              placeholder="🔍 Fənn adı, başlıq, müəllim və ya kod axtar..."
+              placeholder="🔍 Fənn adı, imtahan başlığı, müəllim və ya kod ilə axtar..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              style={{ width: "100%", padding: "12px 16px", borderRadius: 12, border: `1px solid ${COLORS.paperLine}`, background: COLORS.card, fontSize: 14, outline: "none", boxSizing: "border-box" }}
+              style={{
+                width: "100%",
+                padding: "14px 18px",
+                borderRadius: 12,
+                border: `1px solid ${COLORS.paperLine}`,
+                background: COLORS.card,
+                fontSize: 14,
+                outline: "none",
+                boxSizing: "border-box"
+              }}
             />
+            <button 
+              onClick={fetchExams} 
+              style={{ background: COLORS.card, border: `1px solid ${COLORS.paperLine}`, borderRadius: 12, padding: "0 16px", cursor: "pointer", fontSize: 14 }}
+              title="Siyahını Yenilə"
+            >
+              🔄
+            </button>
           </div>
 
+          {/* Testlər Siyahısı */}
           <div style={{ background: COLORS.card, border: `1px solid ${COLORS.paperLine}`, borderRadius: 16, padding: "24px" }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, color: COLORS.ink, margin: "0 0 16px 0" }}>
-              📚 Aktiv İmtahanlar Siyahısı
+              📚 Mövcud İmtahanlar ({filteredForms.length})
             </h3>
 
             {loading ? (
-              <p style={{ fontSize: 13, color: COLORS.inkSoft }}>Buluddan testlər yüklənir...</p>
+              <p style={{ fontSize: 13, color: COLORS.inkSoft }}>Məlumatlar yüklənir...</p>
             ) : filteredForms.length === 0 ? (
-              <p style={{ fontSize: 13, color: COLORS.inkSoft }}>Hələ ki bazada aktiv imtahan yoxdur.</p>
+              <p style={{ fontSize: 13, color: COLORS.inkSoft }}>Axtarışa uyğun imtahan tapılmadı.</p>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {filteredForms.map((frm) => (
@@ -213,13 +185,16 @@ export default function StudentView() {
                       </div>
                       <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.ink }}>{frm.title}</div>
                       <div style={{ fontSize: 12.5, color: COLORS.inkSoft, marginTop: 4 }}>
-                        👨‍🏫 Müəllim: <strong>{frm.teacher_name}</strong> • 📝 Sual sayı: <strong>{frm.questions ? frm.questions.length : 0}</strong>
-                        {frm.created_at && ` • 📅 Tarix: ${new Date(frm.created_at).toLocaleDateString("az-AZ")}`}
+                        👨‍🏫 Müəllim: <strong>{frm.teacher_name}</strong> • 📝 Sual: <strong>{frm.questions ? frm.questions.length : 0}</strong>
+                        {frm.created_at && ` • 📅 ${new Date(frm.created_at).toLocaleDateString("az-AZ")}`}
                       </div>
                     </div>
 
-                    <button onClick={() => handleStartExam(frm)} style={{ background: COLORS.ink, color: "#fff", border: "none", borderRadius: 8, padding: "10px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-                      Testə Başla →
+                    <button 
+                      onClick={() => setSelectedExam(frm)} 
+                      style={{ background: COLORS.ink, color: "#fff", border: "none", borderRadius: 8, padding: "10px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                    >
+                      İmtahana Başla →
                     </button>
                   </div>
                 ))}
@@ -229,14 +204,44 @@ export default function StudentView() {
         </div>
       )}
 
-      {isNameSaved && currentExam && (
+      {/* Seçilən İmtahan üçün Ad-Soyad Daxil Etmə Modalı/Pəncərəsi */}
+      {selectedExam && !currentExam && (
+        <div style={{ background: COLORS.card, border: `1px solid ${COLORS.paperLine}`, borderRadius: 16, padding: "32px" }}>
+          <button onClick={() => setSelectedExam(null)} style={{ background: "transparent", border: "none", color: COLORS.ink, fontSize: 13, cursor: "pointer", marginBottom: 16 }}>
+            ← Geri qayıt
+          </button>
+          <h3 style={{ fontSize: 18, fontWeight: 700, color: COLORS.ink, margin: "0 0 8px 0" }}>
+            {selectedExam.title} ({selectedExam.subject})
+          </h3>
+          <p style={{ fontSize: 13, color: COLORS.inkSoft, marginBottom: 20 }}>
+            İmtahana başlamaq üçün ad və soyadınızı daxil edin.
+          </p>
+
+          <form onSubmit={handleStartExam} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <input
+              type="text"
+              placeholder="Ad və Soyadınız"
+              value={studentName}
+              onChange={(e) => setStudentName(e.target.value)}
+              style={{ width: "100%", padding: "12px 16px", borderRadius: 8, border: `1px solid ${COLORS.paperLine}`, background: COLORS.paper, fontSize: 14, outline: "none", boxSizing: "border-box" }}
+              autoFocus
+            />
+            <button type="submit" style={{ background: COLORS.green, color: "#fff", border: "none", borderRadius: 8, padding: "12px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
+              Testi Başlat →
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* İmtahan Ekranı */}
+      {currentExam && (
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }} className="no-print">
             <button onClick={() => setCurrentExam(null)} style={{ background: "transparent", border: "none", color: COLORS.ink, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
               ← Siyahıya Qayıt
             </button>
-            <button onClick={handlePrint} style={{ background: COLORS.paper, color: COLORS.ink, border: `1px solid ${COLORS.paperLine}`, borderRadius: 8, padding: "8px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-              🖨️ Nəticəni / Səhifəni Çap Et
+            <button onClick={() => window.print()} style={{ background: COLORS.paper, color: COLORS.ink, border: `1px solid ${COLORS.paperLine}`, borderRadius: 8, padding: "8px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+              🖨️ Çap Et
             </button>
           </div>
 
@@ -254,7 +259,7 @@ export default function StudentView() {
 
           {submitted && (
             <div style={{ background: "rgba(5, 150, 105, 0.08)", border: `1px solid ${COLORS.green}`, borderRadius: 16, padding: "24px", marginBottom: 20, textAlign: "center" }}>
-              <h3 style={{ fontSize: 20, color: COLORS.green, margin: "0 0 6px 0" }}>İmtahan Tamamlandı və Buluda Yazıldı!</h3>
+              <h3 style={{ fontSize: 20, color: COLORS.green, margin: "0 0 6px 0" }}>İmtahan Tamamlandı!</h3>
               <p style={{ fontSize: 15, color: COLORS.ink, margin: 0 }}>
                 Nəticəniz: <strong>{score}</strong> / {currentExam.questions.length} düzgün cavab 
                 ({Math.round((score / currentExam.questions.length) * 100)}%)
@@ -330,7 +335,7 @@ export default function StudentView() {
           {!submitted && (
             <div className="no-print" style={{ marginTop: 24 }}>
               <button type="button" onClick={handleSubmitExam} style={{ width: "100%", background: COLORS.green, color: "#fff", border: "none", borderRadius: 10, padding: "14px", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
-                Cavabları Təqdim Et və Nəticəni Gör
+                Cavabları Təqdim Et
               </button>
             </div>
           )}
