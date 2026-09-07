@@ -20,12 +20,14 @@ interface FormItem {
   title: string;
   subject: string;
   code: string;
+  exam_pin?: string | null;
   questions: Question[];
   created_at?: string;
 }
 
 export default function StudentView() {
   const [studentName, setStudentName] = useState("");
+  const [enteredPin, setEnteredPin] = useState("");
   const [savedForms, setSavedForms] = useState<FormItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
@@ -62,8 +64,20 @@ export default function StudentView() {
       alert("Zəhmət olmasa ad və soyadınızı daxil edin!");
       return;
     }
+
+    if (!selectedExam) return;
+
+    // Əgər imtahanın PIN şifrəsi varsa, yoxlayırıq
+    if (selectedExam.exam_pin && selectedExam.exam_pin.trim() !== "") {
+      if (enteredPin.trim() !== selectedExam.exam_pin.trim()) {
+        alert("Yanlış İmtahan PIN şifrəsi! Müəllimdən doğru şifrəni alın.");
+        return;
+      }
+    }
+
     setCurrentExam(selectedExam);
     setSelectedExam(null);
+    setEnteredPin("");
     setAnswers({});
     setSubmitted(false);
     setScore(0);
@@ -86,7 +100,7 @@ export default function StudentView() {
 
     if (answeredCount < questionsList.length) {
       const confirmSubmit = window.confirm(
-        `Siz ${questionsList.length} sualdan yalnız ${answeredCount}-ni cavablandıramısınız. Yine de təqdim etmək istəyirsiniz?`
+        `Siz ${questionsList.length} sualdan yalnız ${answeredCount}-ni cavablandırmısınız. Yenə də təqdim etmək istəyirsiniz?`
       );
       if (!confirmSubmit) return;
     }
@@ -187,39 +201,48 @@ export default function StudentView() {
               <p style={{ fontSize: 13, color: COLORS.inkSoft }}>Axtarışa uyğun imtahan tapılmadı.</p>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {filteredForms.map((frm) => (
-                  <div key={frm.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", background: COLORS.paper, borderRadius: 12, border: `1px solid ${COLORS.paperLine}`, flexWrap: "wrap", gap: 12 }}>
-                    <div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: COLORS.green, background: "rgba(5, 150, 105, 0.1)", padding: "2px 8px", borderRadius: 12 }}>
-                          {frm.subject}
-                        </span>
-                        <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.inkSoft }}>
-                          Kod: <strong style={{ color: COLORS.ink }}>{frm.code}</strong>
-                        </span>
+                {filteredForms.map((frm) => {
+                  const hasPin = frm.exam_pin && frm.exam_pin.trim() !== "";
+                  return (
+                    <div key={frm.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", background: COLORS.paper, borderRadius: 12, border: `1px solid ${COLORS.paperLine}`, flexWrap: "wrap", gap: 12 }}>
+                      <div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: COLORS.green, background: "rgba(5, 150, 105, 0.1)", padding: "2px 8px", borderRadius: 12 }}>
+                            {frm.subject}
+                          </span>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.inkSoft }}>
+                            Kod: <strong style={{ color: COLORS.ink }}>{frm.code}</strong>
+                          </span>
+                          <span style={{ fontSize: 11, fontWeight: 600, color: hasPin ? "#d9534f" : COLORS.green }}>
+                            {hasPin ? "🔒 Şifrəli" : "🔓 Açıq"}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.ink }}>{frm.title}</div>
+                        <div style={{ fontSize: 12.5, color: COLORS.inkSoft, marginTop: 4 }}>
+                          👨‍🏫 Müəllim: <strong>{frm.teacher_name}</strong> • 📝 Sual: <strong>{frm.questions ? frm.questions.length : 0}</strong>
+                          {frm.created_at && ` • 📅 ${new Date(frm.created_at).toLocaleDateString("az-AZ")}`}
+                        </div>
                       </div>
-                      <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.ink }}>{frm.title}</div>
-                      <div style={{ fontSize: 12.5, color: COLORS.inkSoft, marginTop: 4 }}>
-                        👨‍🏫 Müəllim: <strong>{frm.teacher_name}</strong> • 📝 Sual: <strong>{frm.questions ? frm.questions.length : 0}</strong>
-                        {frm.created_at && ` • 📅 ${new Date(frm.created_at).toLocaleDateString("az-AZ")}`}
-                      </div>
-                    </div>
 
-                    <button 
-                      onClick={() => setSelectedExam(frm)} 
-                      style={{ background: COLORS.ink, color: "#fff", border: "none", borderRadius: 8, padding: "10px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
-                    >
-                      İmtahana Başla →
-                    </button>
-                  </div>
-                ))}
+                      <button 
+                        onClick={() => {
+                          setSelectedExam(frm);
+                          setEnteredPin("");
+                        }} 
+                        style={{ background: COLORS.ink, color: "#fff", border: "none", borderRadius: 8, padding: "10px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                      >
+                        İmtahana Başla →
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* Seçilən İmtahan üçün Ad-Soyad Daxil Etmə Modalı/Pəncərəsi */}
+      {/* Seçilən İmtahan üçün Ad-Soyad və Şifrə Daxil Etmə Pəncərəsi */}
       {selectedExam && !currentExam && (
         <div style={{ background: COLORS.card, border: `1px solid ${COLORS.paperLine}`, borderRadius: 16, padding: "32px" }}>
           <button onClick={() => setSelectedExam(null)} style={{ background: "transparent", border: "none", color: COLORS.ink, fontSize: 13, cursor: "pointer", marginBottom: 16 }}>
@@ -229,7 +252,7 @@ export default function StudentView() {
             {selectedExam.title} ({selectedExam.subject})
           </h3>
           <p style={{ fontSize: 13, color: COLORS.inkSoft, marginBottom: 20 }}>
-            İmtahana başlamaq üçün ad və soyadınızı daxil edin.
+            İmtahana başlamaq üçün ad və soyadınızı {selectedExam.exam_pin ? "və müəllimin verdiyi PIN şifrəni" : ""} daxil edin.
           </p>
 
           <form onSubmit={handleStartExam} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -241,6 +264,17 @@ export default function StudentView() {
               style={{ width: "100%", padding: "12px 16px", borderRadius: 8, border: `1px solid ${COLORS.paperLine}`, background: COLORS.paper, fontSize: 14, outline: "none", boxSizing: "border-box" }}
               autoFocus
             />
+
+            {selectedExam.exam_pin && selectedExam.exam_pin.trim() !== "" && (
+              <input
+                type="text"
+                placeholder="İmtahan PIN Şifrəsi (Məs: 3636)"
+                value={enteredPin}
+                onChange={(e) => setEnteredPin(e.target.value)}
+                style={{ width: "100%", padding: "12px 16px", borderRadius: 8, border: `1px solid ${COLORS.paperLine}`, background: COLORS.paper, fontSize: 14, outline: "none", boxSizing: "border-box" }}
+              />
+            )}
+
             <button type="submit" style={{ background: COLORS.green, color: "#fff", border: "none", borderRadius: 8, padding: "12px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
               Testi Başlat →
             </button>
