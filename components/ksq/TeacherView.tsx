@@ -58,22 +58,40 @@ export default function TeacherView() {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
   const handleAddQuestion = () => {
-    setQuestions([
-      ...questions,
-      { id: questions.length + 1, text: "", optA: "", optB: "", optC: "", optD: "", correct: "A" }
+    setQuestions((prev) => [
+      ...prev,
+      { id: Date.now(), text: "", optA: "", optB: "", optC: "", optD: "", correct: "A" }
     ]);
   };
 
+  const handleRemoveQuestion = (id: number) => {
+    if (questions.length === 1) {
+      alert("En azı 1 sual olmalıdır!");
+      return;
+    }
+    setQuestions((prev) => prev.filter((q) => q.id !== id));
+  };
+
   const handleQuestionChange = (id: number, field: keyof Question, value: string) => {
-    setQuestions(
-      questions.map((q) => (q.id === id ? { ...q, [field]: value } : q))
+    setQuestions((prev) =>
+      prev.map((q) => (q.id === id ? { ...q, [field]: value } : q))
     );
   };
 
   const handleSaveExam = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!teacherName.trim() || !title.trim() || !code.trim()) {
       alert("Zəhmət olmasa müəllim adını, başlığı və kodu doldurun!");
+      return;
+    }
+
+    const hasEmptyQuestions = questions.some(
+      (q) => !q.text.trim() || !q.optA.trim() || !q.optB.trim() || !q.optC.trim() || !q.optD.trim()
+    );
+
+    if (hasEmptyQuestions) {
+      alert("Zəhmət olmasa bütün sualları və variantları tam doldurun!");
       return;
     }
 
@@ -82,10 +100,10 @@ export default function TeacherView() {
     try {
       const { error } = await supabase.from("exams").insert([
         {
-          teacher_name: teacherName,
-          title: title,
+          teacher_name: teacherName.trim(),
+          title: title.trim(),
           subject: subject,
-          code: code,
+          code: code.trim().toUpperCase(),
           questions: questions,
         },
       ]);
@@ -95,8 +113,7 @@ export default function TeacherView() {
       alert("İmtahan uğurla bulud bazasına yadda saxlanıldı!");
       setTitle("");
       setCode("");
-      setQuestions([{ id: 1, text: "", optA: "", optB: "", optC: "", optD: "", correct: "A" }]);
-      
+      setQuestions([{ id: Date.now(), text: "", optA: "", optB: "", optC: "", optD: "", correct: "A" }]);
       fetchExamsList();
     } catch (err: any) {
       console.error(err);
@@ -152,7 +169,6 @@ export default function TeacherView() {
     );
   });
 
-  // Checkbox seçimlərini idarə etmək
   const toggleSelect = (id: number) => {
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
@@ -167,7 +183,6 @@ export default function TeacherView() {
     }
   };
 
-  // Çap funksiyaları
   const handlePrint = (singleId?: number) => {
     if (singleId) {
       setSelectedIds([singleId]);
@@ -177,7 +192,6 @@ export default function TeacherView() {
     }
   };
 
-  // Kopyalama funksiyaları
   const copySingleResult = (res: StudentResult) => {
     const text = `Şagird: ${res.student_name} | Test: ${res.exam_title} | Bal: ${res.score}/${res.total_questions} (${res.percentage}%)`;
     navigator.clipboard.writeText(text);
@@ -215,7 +229,6 @@ export default function TeacherView() {
           </p>
         </div>
 
-        {/* Tab Keçid Düymələri */}
         <div style={{ display: "flex", background: COLORS.card, border: `1px solid ${COLORS.paperLine}`, borderRadius: 10, padding: 4, gap: 4 }}>
           <button
             onClick={() => setActiveTab("create")}
@@ -320,18 +333,28 @@ export default function TeacherView() {
                 type="text"
                 placeholder="Məsələn: KSQ-RIY-01"
                 value={code}
-                onChange={(e) => setCode(e.target.value)}
+                onChange={(e) => setCode(e.target.value.toUpperCase().replace(/\s+/g, ""))}
                 style={{ width: "100%", padding: "10px 14px", borderRadius: 8, border: `1px solid ${COLORS.paperLine}`, background: COLORS.paper, fontSize: 14, outline: "none", boxSizing: "border-box" }}
               />
             </div>
           </div>
 
-          {/* Suallar */}
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             {questions.map((q, idx) => (
-              <div key={q.id} style={{ background: COLORS.card, border: `1px solid ${COLORS.paperLine}`, borderRadius: 16, padding: "20px" }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.ink, marginBottom: 12 }}>
-                  Sual #{idx + 1}
+              <div key={q.id} style={{ background: COLORS.card, border: `1px solid ${COLORS.paperLine}`, borderRadius: 16, padding: "20px", position: "relative" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.ink }}>
+                    Sual #{idx + 1}
+                  </span>
+                  {questions.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveQuestion(q.id)}
+                      style={{ background: "transparent", border: "none", color: "#d9534f", cursor: "pointer", fontSize: 13, fontWeight: 600 }}
+                    >
+                      🗑️ Sil
+                    </button>
+                  )}
                 </div>
 
                 <input
@@ -383,7 +406,6 @@ export default function TeacherView() {
           </button>
         </form>
       ) : activeTab === "exams" ? (
-        /* Mövcud İmtahanlar Siyahısı */
         <div style={{ background: COLORS.card, border: `1px solid ${COLORS.paperLine}`, borderRadius: 16, padding: "20px" }}>
           <h2 style={{ fontSize: 16, fontWeight: 700, color: COLORS.ink, marginBottom: 16 }}>
             📚 Yaradılmış Bütün İmtahanlar (Lent)
@@ -417,7 +439,6 @@ export default function TeacherView() {
           )}
         </div>
       ) : (
-        /* Şagird Nəticələri Bölməsi (Seçim Sistemi Və Fərdi Düymələrlə) */
         <div>
           <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap", alignItems: "center", justifyContent: "space-between" }} className="no-print">
             <input
@@ -445,7 +466,6 @@ export default function TeacherView() {
           </div>
 
           <div style={{ background: COLORS.card, border: `1px solid ${COLORS.paperLine}`, borderRadius: 16, padding: "20px" }}>
-            {/* Hamısını Seç Control Header-ı */}
             {filteredResults.length > 0 && (
               <div style={{ paddingBottom: 12, marginBottom: 12, borderBottom: `1px solid ${COLORS.paperLine}`, display: "flex", alignItems: "center", gap: 8 }} className="no-print">
                 <input
@@ -473,10 +493,10 @@ export default function TeacherView() {
                   return (
                     <div
                       key={res.id}
-                      className={isHiddenInPrint ? "no-print" : ""}
+                      className={isHiddenInPrint ? "no-print" : "printable-item"}
                       style={{
                         display: "flex",
-                        justifyContent: "space-between",
+                        justify: "space-between",
                         alignItems: "center",
                         padding: "14px 16px",
                         background: COLORS.paper,
@@ -514,7 +534,6 @@ export default function TeacherView() {
                           </div>
                         </div>
 
-                        {/* Hər şagirdə özəl Çap və Kopyala düymələri */}
                         <div style={{ display: "flex", gap: 6 }} className="no-print">
                           <button
                             type="button"
@@ -543,11 +562,20 @@ export default function TeacherView() {
         </div>
       )}
 
-      {/* Çap Zamanı Lazımsız İnterfeys Elementlərini Gizlədən CSS Stili */}
       <style jsx global>{`
         @media print {
+          body {
+            background: #fff !important;
+            color: #000 !important;
+          }
           .no-print {
             display: none !important;
+          }
+          .printable-item {
+            border: 1px solid #ccc !important;
+            background: #fff !important;
+            margin-bottom: 8px !important;
+            page-break-inside: avoid;
           }
         }
       `}</style>

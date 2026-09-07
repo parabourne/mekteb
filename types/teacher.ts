@@ -15,6 +15,9 @@ export interface ExamItem {
   subject: string;
   code: string;
   questions: Question[];
+  is_private: boolean;    // false = Açıq imtahan, true = Özəl (PIN tələb edən)
+  exam_pin?: string;      // Özəl imtahan üçün giriş PIN kodu
+  is_active: boolean;     // true = Aktiv (davam edir), false = Qapalı (bitib)
   created_at?: string;
 }
 
@@ -25,5 +28,6 @@ export interface StudentResult {
   score: number;
   total_questions: number;
   percentage: number;
+  result_pin: string;     // Valideynin nəticəyə baxması üçün unikal şifrə
   created_at: string;
 }

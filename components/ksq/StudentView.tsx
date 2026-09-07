@@ -29,6 +29,7 @@ export default function StudentView() {
   const [savedForms, setSavedForms] = useState<FormItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [selectedExam, setSelectedExam] = useState<FormItem | null>(null);
   const [currentExam, setCurrentExam] = useState<FormItem | null>(null);
@@ -71,24 +72,37 @@ export default function StudentView() {
 
   const handleOptionSelect = (questionId: number, optionKey: string) => {
     if (submitted) return;
-    setAnswers({
-      ...answers,
+    setAnswers((prev) => ({
+      ...prev,
       [questionId]: optionKey,
-    });
+    }));
   };
 
   const handleSubmitExam = async () => {
-    if (!currentExam) return;
+    if (!currentExam || isSubmitting) return;
+
+    const questionsList = currentExam.questions || [];
+    const answeredCount = Object.keys(answers).length;
+
+    if (answeredCount < questionsList.length) {
+      const confirmSubmit = window.confirm(
+        `Siz ${questionsList.length} sualdan yalnız ${answeredCount}-ni cavablandıramısınız. Yine de təqdim etmək istəyirsiniz?`
+      );
+      if (!confirmSubmit) return;
+    }
+
+    setIsSubmitting(true);
 
     let correctCount = 0;
-    currentExam.questions.forEach((q) => {
+    questionsList.forEach((q) => {
       if (answers[q.id] === q.correct) {
         correctCount++;
       }
     });
 
     const finalScore = correctCount;
-    const percentage = Math.round((finalScore / currentExam.questions.length) * 100);
+    const totalQuestions = questionsList.length;
+    const percentage = totalQuestions > 0 ? Math.round((finalScore / totalQuestions) * 100) : 0;
 
     setScore(finalScore);
     setSubmitted(true);
@@ -100,7 +114,7 @@ export default function StudentView() {
         exam_title: currentExam.title,
         student_name: studentName.trim(),
         score: finalScore,
-        total_questions: currentExam.questions.length,
+        total_questions: totalQuestions,
         percentage: percentage,
       },
     ]);
@@ -108,6 +122,7 @@ export default function StudentView() {
     if (error) {
       console.error("Nəticə buluda yazılmadı:", error.message);
     }
+    setIsSubmitting(false);
   };
 
   const filteredForms = savedForms.filter((frm) => {
@@ -261,14 +276,14 @@ export default function StudentView() {
             <div style={{ background: "rgba(5, 150, 105, 0.08)", border: `1px solid ${COLORS.green}`, borderRadius: 16, padding: "24px", marginBottom: 20, textAlign: "center" }}>
               <h3 style={{ fontSize: 20, color: COLORS.green, margin: "0 0 6px 0" }}>İmtahan Tamamlandı!</h3>
               <p style={{ fontSize: 15, color: COLORS.ink, margin: 0 }}>
-                Nəticəniz: <strong>{score}</strong> / {currentExam.questions.length} düzgün cavab 
-                ({Math.round((score / currentExam.questions.length) * 100)}%)
+                Nəticəniz: <strong>{score}</strong> / {currentExam.questions?.length || 0} düzgün cavab 
+                ({currentExam.questions?.length ? Math.round((score / currentExam.questions.length) * 100) : 0}%)
               </p>
             </div>
           )}
 
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            {currentExam.questions.map((q, index) => {
+            {(currentExam.questions || []).map((q, index) => {
               const userSelected = answers[q.id];
               const isCorrect = submitted && userSelected === q.correct;
               const isWrong = submitted && userSelected && userSelected !== q.correct;
@@ -334,8 +349,23 @@ export default function StudentView() {
 
           {!submitted && (
             <div className="no-print" style={{ marginTop: 24 }}>
-              <button type="button" onClick={handleSubmitExam} style={{ width: "100%", background: COLORS.green, color: "#fff", border: "none", borderRadius: 10, padding: "14px", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
-                Cavabları Təqdim Et
+              <button 
+                type="button" 
+                onClick={handleSubmitExam} 
+                disabled={isSubmitting}
+                style={{ 
+                  width: "100%", 
+                  background: isSubmitting ? COLORS.inkSoft : COLORS.green, 
+                  color: "#fff", 
+                  border: "none", 
+                  borderRadius: 10, 
+                  padding: "14px", 
+                  fontSize: 15, 
+                  fontWeight: 700, 
+                  cursor: isSubmitting ? "not-allowed" : "pointer" 
+                }}
+              >
+                {isSubmitting ? "Göndərilir..." : "Cavabları Təqdim Et"}
               </button>
             </div>
           )}
