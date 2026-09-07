@@ -77,37 +77,134 @@ export default function ParentView() {
     }
   };
 
+  // Yeni və 100% işlək çap funksiyası (menyuları və digər hər şeyi kənarda qoyur)
   const handlePrintPDF = () => {
-    window.print();
+    if (!resultData) return;
+
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      alert("Zəhmət olmasa brauzerdə pop-up pəncərələrə icazə verin.");
+      return;
+    }
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html lang="az">
+      <head>
+        <meta charset="UTF-8">
+        <title>İmtahan Nəticəsi - ${resultData.student_name}</title>
+        <style>
+          body {
+            font-family: 'Inter', Arial, sans-serif;
+            background: #ffffff;
+            color: #111827;
+            padding: 40px;
+            max-width: 700px;
+            margin: 0 auto;
+          }
+          .card {
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 32px;
+            background: #f9fafb;
+          }
+          .header {
+            margin-bottom: 24px;
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 16px;
+          }
+          .badge {
+            font-size: 11px;
+            font-weight: 700;
+            color: #059669;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+          }
+          h2 {
+            margin: 8px 0 4px 0;
+            font-size: 22px;
+          }
+          p {
+            margin: 0;
+            font-size: 13px;
+            color: #4b5563;
+          }
+          .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-top: 20px;
+          }
+          .box {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            padding: 16px;
+            border-radius: 8px;
+          }
+          .box-title {
+            font-size: 12px;
+            color: #4b5563;
+          }
+          .box-value {
+            font-size: 22px;
+            font-weight: 800;
+            color: #111827;
+            margin-top: 4px;
+          }
+          .footer-text {
+            margin-top: 24px;
+            text-align: center;
+            font-size: 13px;
+            color: #4b5563;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <div class="header">
+            <span class="badge">✅ Rəsmi Qiymətləndirmə Nəticəsi</span>
+            <h2>${resultData.student_name}</h2>
+            <p>Test: <strong>${resultData.exam_title}</strong> • Tarix: ${new Date(resultData.created_at).toLocaleDateString("az-AZ")}</p>
+          </div>
+          
+          <div class="grid">
+            <div class="box">
+              <div class="box-title">Topladığı Bal</div>
+              <div class="box-value">${resultData.score} / ${resultData.total_questions}</div>
+            </div>
+            <div class="box">
+              <div class="box-title">Müvəffəqiyyət Faizi</div>
+              <div class="box-value" style="color: #059669;">%${resultData.percentage}</div>
+            </div>
+          </div>
+
+          <div class="footer-text">
+            ${
+              resultData.percentage >= 80
+                ? "Əla nəticədir! Övladınız mövzunu tam mənimsəyib."
+                : resultData.percentage >= 50
+                ? "Yaxşı nəticədir, lakin daha da diqqətli olmaq olar."
+                : "İnkişaf etdirilməli mövzular var, birgə daha çox çalışmalıyıq."
+            }
+          </div>
+        </div>
+        <script>
+          window.onload = function() {
+            window.print();
+          }
+        </script>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
   };
 
   return (
     <div style={{ maxWidth: 720, margin: "0 auto", paddingBottom: 40, fontFamily: "'Inter', sans-serif" }}>
-      {/* Çap zamanı işləyəcək sadə və etibarlı stillər */}
-      <style jsx global>{`
-        @media print {
-          /* Axtarış formasını, başlığı və düymələri çapda gizlədirik */
-          .no-print {
-            display: none !important;
-          }
-          /* Nəticə qutusunu səhifəyə tam uyğunlaşdırırıq */
-          .print-container {
-            border: none !important;
-            box-shadow: none !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            width: 100% !important;
-            background: #ffffff !important;
-          }
-          body {
-            background: #ffffff !important;
-            color: #000000 !important;
-          }
-        }
-      `}</style>
-
-      {/* Səhifə Başlığı (Çapda gizlənir) */}
-      <div style={{ marginBottom: 28 }} className="no-print">
+      {/* Səhifə Başlığı */}
+      <div style={{ marginBottom: 28 }}>
         <h1
           style={{
             fontSize: 24,
@@ -124,9 +221,8 @@ export default function ParentView() {
         </p>
       </div>
 
-      {/* Axtarış Formu Kartı (Çapda gizlənir) */}
+      {/* Axtarış Formu Kartı */}
       <div
-        className="no-print"
         style={{
           background: COLORS.card,
           border: `1px solid ${COLORS.paperLine}`,
@@ -224,7 +320,6 @@ export default function ParentView() {
       {/* Nəticə Bloku */}
       {searched && (
         <div
-          className="print-container"
           style={{
             marginTop: 28,
             padding: "24px",
@@ -260,7 +355,6 @@ export default function ParentView() {
 
                 <button
                   onClick={handlePrintPDF}
-                  className="no-print"
                   style={{
                     padding: "8px 12px",
                     borderRadius: 6,
