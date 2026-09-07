@@ -36,7 +36,7 @@ export default function StudentView() {
   const [submitted, setSubmitted] = useState(false);
   const [score, setScore] = useState(0);
 
-  // Bazadan testləri çəkmək
+  // Bazadan bütün testləri çəkmək
   const fetchExams = async () => {
     setLoading(true);
     const { data, error } = await supabase
@@ -81,7 +81,8 @@ export default function StudentView() {
     });
   };
 
-  const handleSubmitExam = () => {
+  // Cavabları yoxla, nəticəni hesabla və Supabase-ə yaz
+  const handleSubmitExam = async () => {
     if (!currentExam) return;
 
     let correctCount = 0;
@@ -91,9 +92,28 @@ export default function StudentView() {
       }
     });
 
-    setScore(correctCount);
+    const finalScore = correctCount;
+    const percentage = Math.round((finalScore / currentExam.questions.length) * 100);
+
+    setScore(finalScore);
     setSubmitted(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
+
+    // Buluda (student_results cədvəlinə) yazılma
+    const { error } = await supabase.from("student_results").insert([
+      {
+        exam_id: currentExam.id,
+        exam_title: currentExam.title,
+        student_name: studentName.trim(),
+        score: finalScore,
+        total_questions: currentExam.questions.length,
+        percentage: percentage,
+      },
+    ]);
+
+    if (error) {
+      console.error("Nəticə buluda yazılmadı:", error.message);
+    }
   };
 
   const handlePrint = () => {
@@ -214,7 +234,7 @@ export default function StudentView() {
               ← Siyahıya Qayıt
             </button>
             <button onClick={handlePrint} style={{ background: COLORS.paper, color: COLORS.ink, border: `1px solid ${COLORS.paperLine}`, borderRadius: 8, padding: "8px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-              🖨️ Çap Et
+              🖨️ Nəticəni / Səhifəni Çap Et
             </button>
           </div>
 
@@ -232,7 +252,7 @@ export default function StudentView() {
 
           {submitted && (
             <div style={{ background: "rgba(5, 150, 105, 0.08)", border: `1px solid ${COLORS.green}`, borderRadius: 16, padding: "24px", marginBottom: 20, textAlign: "center" }}>
-              <h3 style={{ fontSize: 20, color: COLORS.green, margin: "0 0 6px 0" }}>İmtahan Tamamlandı!</h3>
+              <h3 style={{ fontSize: 20, color: COLORS.green, margin: "0 0 6px 0" }}>İmtahan Tamamlandı və Buluda Yazıldı!</h3>
               <p style={{ fontSize: 15, color: COLORS.ink, margin: 0 }}>
                 Nəticəniz: <strong>{score}</strong> / {currentExam.questions.length} düzgün cavab 
                 ({Math.round((score / currentExam.questions.length) * 100)}%)
