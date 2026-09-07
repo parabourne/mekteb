@@ -13,13 +13,17 @@ interface StudentResult {
   total_questions: number;
   percentage: number;
   created_at: string;
+  student_answers?: { [questionId: number]: string };
 }
 
 interface QuestionItem {
   id: number;
-  question?: string;
-  correct_answer?: string;
-  [key: string]: any;
+  text: string;
+  optA: string;
+  optB: string;
+  optC: string;
+  optD: string;
+  correct: string;
 }
 
 export default function ParentView() {
@@ -92,21 +96,36 @@ export default function ParentView() {
     }
   };
 
+  // Bir sualın variant hərfini (A/B/C/D) onun mətni ilə birgə göstərir
+  const optionLabel = (q: QuestionItem, key?: string) => {
+    if (!key) return "Cavablanmayıb";
+    const map: Record<string, string> = { A: q.optA, B: q.optB, C: q.optC, D: q.optD };
+    return `${key}) ${map[key] ?? ""}`;
+  };
+
   // Yalnız çap pəncərəsi üçün təmiz, səliqəli və bütün sualları əhatə edən rəsmi arayış dizaynı
   const handlePrintPDF = () => {
     if (!resultData) return;
 
     const questionsHtml = examQuestions.length > 0
-      ? examQuestions.map((q, idx) => `
-          <div style="padding: 10px 12px; margin-bottom: 8px; border: 1px solid #e5e7eb; border-radius: 6px; background: #fff;">
-            <div style="font-weight: 600; font-size: 13px; color: #111827; margin-bottom: 4px;">
-              Sual ${idx + 1}: ${q.question || "Sual mətni qeyd olunmayıb"}
+      ? examQuestions.map((q, idx) => {
+          const studentKey = resultData.student_answers?.[q.id];
+          const isCorrect = studentKey === q.correct;
+          return `
+            <div style="padding: 10px 12px; margin-bottom: 8px; border: 1px solid #e5e7eb; border-radius: 6px; background: #fff;">
+              <div style="font-weight: 600; font-size: 13px; color: #111827; margin-bottom: 6px;">
+                Sual ${idx + 1}: ${q.text || "Sual mətni qeyd olunmayıb"}
+              </div>
+              <div style="font-size: 12px; color: ${studentKey ? (isCorrect ? "#059669" : "#dc2626") : "#6b7280"}; font-weight: 500; margin-bottom: 2px;">
+                Şagirdin Cavabı: ${optionLabel(q, studentKey)} ${studentKey ? (isCorrect ? "✓" : "✗") : ""}
+              </div>
+              ${!isCorrect ? `
+              <div style="font-size: 12px; color: #059669; font-weight: 500;">
+                Düzgün Cavab: ${optionLabel(q, q.correct)}
+              </div>` : ""}
             </div>
-            <div style="font-size: 12px; color: #059669; font-weight: 500;">
-              Düzgün Cavab: ${q.correct_answer || q.opta || "Təyin olunmayıb"}
-            </div>
-          </div>
-        `).join("")
+          `;
+        }).join("")
       : `<p style="font-size: 13px; color: #6b7280; text-align: center;">Bu imtahan üçün sual siyahısı tapılmadı.</p>`;
 
     const printWindow = window.open("", "_blank");
@@ -216,7 +235,7 @@ export default function ParentView() {
             </div>
           </div>
 
-          <div class="section-title">İmtahan Sualları və Düzgün Cavablar</div>
+          <div class="section-title">İmtahan Sualları, Şagirdin Cavabları və Düzgün Cavablar</div>
           <div>${questionsHtml}</div>
 
           <div class="footer-text">

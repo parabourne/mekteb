@@ -134,6 +134,7 @@ export default function StudentView() {
         score: finalScore,
         total_questions: totalQuestions,
         percentage: percentage,
+        student_answers: answers,
       },
     ]);
 
