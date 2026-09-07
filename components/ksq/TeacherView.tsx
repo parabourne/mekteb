@@ -496,7 +496,7 @@ export default function TeacherView() {
                       className={isHiddenInPrint ? "no-print" : "printable-item"}
                       style={{
                         display: "flex",
-                        justify: "space-between",
+                        justifyContent: "space-between",
                         alignItems: "center",
                         padding: "14px 16px",
                         background: COLORS.paper,

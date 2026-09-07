@@ -94,7 +94,7 @@ export default function StudentResults({ results, resultsLoading }: StudentResul
           marginBottom: 16,
           flexWrap: "wrap",
           alignItems: "center",
-          justify: "space-between",
+          justifyContent: "space-between",
         }}
         className="no-print"
       >
@@ -200,7 +200,7 @@ export default function StudentResults({ results, resultsLoading }: StudentResul
                   className={isHiddenInPrint ? "no-print" : ""}
                   style={{
                     display: "flex",
-                    justify: "space-between",
+                    justifyContent: "space-between",
                     alignItems: "center",
                     padding: "14px 16px",
                     background: COLORS.paper,
