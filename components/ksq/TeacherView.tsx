@@ -27,12 +27,14 @@ interface ExamItem {
 
 interface StudentResult {
   id: number;
+  exam_id: number;
   exam_title: string;
   student_name: string;
   score: number;
   total_questions: number;
   percentage: number;
   created_at: string;
+  student_answers?: { [questionId: number]: string };
 }
 
 export default function TeacherView() {
@@ -58,6 +60,7 @@ export default function TeacherView() {
   const [resultsLoading, setResultsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [printingId, setPrintingId] = useState<number | null>(null);
 
   const handleAddQuestion = () => {
     setQuestions((prev) => [
@@ -187,15 +190,6 @@ export default function TeacherView() {
     }
   };
 
-  const handlePrint = (singleId?: number) => {
-    if (singleId) {
-      setSelectedIds([singleId]);
-      setTimeout(() => window.print(), 100);
-    } else {
-      window.print();
-    }
-  };
-
   const copySingleResult = (res: StudentResult) => {
     const text = `Şagird: ${res.student_name} | Test: ${res.exam_title} | Bal: ${res.score}/${res.total_questions} (${res.percentage}%)`;
     navigator.clipboard.writeText(text);
@@ -219,6 +213,153 @@ export default function TeacherView() {
 
     navigator.clipboard.writeText(text);
     alert(`${targetResults.length} şagirdin nəticəsi kopyalandı!`);
+  };
+
+  // Variant hərfini (A/B/C/D) mətni ilə birgə göstərir
+  const optionLabel = (q: Question, key?: string) => {
+    if (!key) return "Cavablanmayıb";
+    const map: Record<string, string> = { A: q.optA, B: q.optB, C: q.optC, D: q.optD };
+    return `${key}) ${map[key] ?? ""}`;
+  };
+
+  // Tək bir şagirdin tam arayışını HTML bloku kimi hazırlayır (sual + şagirdin cavabı + düzgün cavab)
+  const buildResultBlock = (res: StudentResult, examQuestions: Question[]) => {
+    const questionsHtml = examQuestions.length > 0
+      ? examQuestions.map((q, idx) => {
+          const studentKey = res.student_answers?.[q.id];
+          const isCorrect = studentKey === q.correct;
+          return `
+            <div style="padding: 10px 12px; margin-bottom: 8px; border: 1px solid #e5e7eb; border-radius: 6px; background: #fff;">
+              <div style="font-weight: 600; font-size: 13px; color: #111827; margin-bottom: 6px;">
+                Sual ${idx + 1}: ${q.text || "Sual mətni qeyd olunmayıb"}
+              </div>
+              <div style="font-size: 12px; color: ${studentKey ? (isCorrect ? "#059669" : "#dc2626") : "#6b7280"}; font-weight: 500; margin-bottom: 2px;">
+                Şagirdin Cavabı: ${optionLabel(q, studentKey)} ${studentKey ? (isCorrect ? "✓" : "✗") : ""}
+              </div>
+              ${!isCorrect ? `
+              <div style="font-size: 12px; color: #059669; font-weight: 500;">
+                Düzgün Cavab: ${optionLabel(q, q.correct)}
+              </div>` : ""}
+            </div>
+          `;
+        }).join("")
+      : `<p style="font-size: 13px; color: #6b7280; text-align: center;">Bu imtahan üçün sual siyahısı tapılmadı.</p>`;
+
+    return `
+      <div class="card" style="border: 1px solid #d1d5db; border-radius: 12px; padding: 24px; background: #f9fafb; margin-bottom: 24px; page-break-inside: avoid;">
+        <div class="header" style="margin-bottom: 20px; border-bottom: 2px solid #e5e7eb; padding-bottom: 12px; text-align: center;">
+          <span class="badge" style="font-size: 11px; font-weight: 700; color: #059669; text-transform: uppercase; letter-spacing: 0.05em;">📋 Rəsmi Qiymətləndirmə Arayışı</span>
+          <h2 style="margin: 6px 0 2px 0; font-size: 20px;">${res.student_name}</h2>
+          <p style="margin: 0; font-size: 12px; color: #4b5563;">Test: <strong>${res.exam_title}</strong> • Tarix: ${new Date(res.created_at).toLocaleDateString("az-AZ")}</p>
+        </div>
+
+        <div class="grid" style="display: flex; gap: 12px; margin-bottom: 20px;">
+          <div class="box" style="flex: 1; background: #ffffff; border: 1px solid #e5e7eb; padding: 12px; border-radius: 8px; text-align: center;">
+            <div class="box-title" style="font-size: 11px; color: #4b5563;">Topladığı Bal</div>
+            <div class="box-value" style="font-size: 18px; font-weight: 800; color: #111827; margin-top: 2px;">${res.score} / ${res.total_questions}</div>
+          </div>
+          <div class="box" style="flex: 1; background: #ffffff; border: 1px solid #e5e7eb; padding: 12px; border-radius: 8px; text-align: center;">
+            <div class="box-title" style="font-size: 11px; color: #4b5563;">Müvəffəqiyyət Faizi</div>
+            <div class="box-value" style="font-size: 18px; font-weight: 800; color: #059669; margin-top: 2px;">%${res.percentage}</div>
+          </div>
+        </div>
+
+        <div class="section-title" style="font-size: 13px; font-weight: 700; margin: 16px 0 8px 0; color: #111827; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px;">
+          İmtahan Sualları, Şagirdin Cavabları və Düzgün Cavablar
+        </div>
+        <div>${questionsHtml}</div>
+
+        <div class="footer-text" style="margin-top: 20px; text-align: center; font-size: 12px; color: #4b5563;">
+          ${
+            res.percentage >= 80
+              ? "Əla nəticədir! Şagird mövzunu tam mənimsəyib."
+              : res.percentage >= 50
+              ? "Yaxşı nəticədir, lakin daha da diqqətli olmaq olar."
+              : "İnkişaf etdirilməli mövzular var."
+          }
+        </div>
+      </div>
+    `;
+  };
+
+  // Bir və ya bir neçə şagirdin tam arayışını (sual + cavablar daxil) çap pəncərəsində açır
+  const handlePrintPDF = async (singleRes?: StudentResult) => {
+    const targetResults = singleRes
+      ? [singleRes]
+      : selectedIds.length > 0
+      ? filteredResults.filter((r) => selectedIds.includes(r.id))
+      : filteredResults;
+
+    if (targetResults.length === 0) {
+      alert("Çap etmək üçün heç bir nəticə yoxdur!");
+      return;
+    }
+
+    setPrintingId(singleRes ? singleRes.id : -1);
+
+    try {
+      // Lazım olan bütün imtahanların sualları üçün unikal exam_id-ləri toplayaq
+      const examIds = Array.from(new Set(targetResults.map((r) => r.exam_id))).filter(Boolean);
+
+      const examQuestionsMap: Record<number, Question[]> = {};
+      if (examIds.length > 0) {
+        const { data, error } = await supabase
+          .from("exams")
+          .select("id, questions")
+          .in("id", examIds);
+
+        if (error) {
+          console.error("Sualları çəkərkən xəta:", error.message);
+        } else if (data) {
+          data.forEach((exam: { id: number; questions: Question[] }) => {
+            examQuestionsMap[exam.id] = exam.questions || [];
+          });
+        }
+      }
+
+      const printWindow = window.open("", "_blank");
+      if (!printWindow) {
+        alert("Zəhmət olmasa brauzerdə pop-up pəncərələrə icazə verin.");
+        return;
+      }
+
+      const blocksHtml = targetResults
+        .map((res) => buildResultBlock(res, examQuestionsMap[res.exam_id] || []))
+        .join("");
+
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html lang="az">
+        <head>
+          <meta charset="UTF-8">
+          <title>Rəsmi İmtahan Arayışları</title>
+          <style>
+            body {
+              font-family: 'Inter', Arial, sans-serif;
+              background: #ffffff;
+              color: #111827;
+              padding: 30px;
+              max-width: 750px;
+              margin: 0 auto;
+            }
+          </style>
+        </head>
+        <body>
+          ${blocksHtml}
+          <script>
+            window.onload = function() {
+              window.print();
+            }
+          </script>
+        </body>
+        </html>
+      `;
+
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+    } finally {
+      setPrintingId(null);
+    }
   };
 
   return (
@@ -469,10 +610,11 @@ export default function TeacherView() {
             
             <div style={{ display: "flex", gap: 8 }}>
               <button
-                onClick={() => handlePrint()}
-                style={{ padding: "10px 14px", borderRadius: 8, border: `1px solid ${COLORS.paperLine}`, background: COLORS.card, color: COLORS.ink, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                onClick={() => handlePrintPDF()}
+                disabled={printingId === -1}
+                style={{ padding: "10px 14px", borderRadius: 8, border: `1px solid ${COLORS.paperLine}`, background: COLORS.card, color: COLORS.ink, fontSize: 13, fontWeight: 600, cursor: printingId === -1 ? "not-allowed" : "pointer", opacity: printingId === -1 ? 0.7 : 1 }}
               >
-                🖨️ {selectedIds.length > 0 ? "Seçilənləri Çap Et" : "PDF Çap Et"}
+                🖨️ {printingId === -1 ? "Hazırlanır..." : selectedIds.length > 0 ? "Seçilənləri Çap Et" : "PDF Çap Et"}
               </button>
               <button
                 onClick={handleCopyResults}
@@ -506,12 +648,10 @@ export default function TeacherView() {
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {filteredResults.map((res) => {
                   const isSelected = selectedIds.includes(res.id);
-                  const isHiddenInPrint = selectedIds.length > 0 && !isSelected;
 
                   return (
                     <div
                       key={res.id}
-                      className={isHiddenInPrint ? "no-print" : "printable-item"}
                       style={{
                         display: "flex",
                         justifyContent: "space-between",
@@ -563,11 +703,12 @@ export default function TeacherView() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => handlePrint(res.id)}
-                            title="Yalnız bu şagirdi çap et"
-                            style={{ padding: "6px 10px", background: COLORS.card, border: `1px solid ${COLORS.paperLine}`, borderRadius: 6, cursor: "pointer", fontSize: 13 }}
+                            onClick={() => handlePrintPDF(res)}
+                            disabled={printingId === res.id}
+                            title="Yalnız bu şagirdin tam arayışını çap et"
+                            style={{ padding: "6px 10px", background: COLORS.card, border: `1px solid ${COLORS.paperLine}`, borderRadius: 6, cursor: printingId === res.id ? "not-allowed" : "pointer", fontSize: 13, opacity: printingId === res.id ? 0.6 : 1 }}
                           >
-                            🖨️
+                            {printingId === res.id ? "..." : "🖨️"}
                           </button>
                         </div>
                       </div>
@@ -588,12 +729,6 @@ export default function TeacherView() {
           }
           .no-print {
             display: none !important;
-          }
-          .printable-item {
-            border: 1px solid #ccc !important;
-            background: #fff !important;
-            margin-bottom: 8px !important;
-            page-break-inside: avoid;
           }
         }
       `}</style>
